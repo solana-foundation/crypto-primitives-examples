@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/app-layout';
 import { AppProviders } from '@/components/app-providers';
 import { AltBn128 } from '@/routes/altbn128';
 import { Bls12381 } from '@/routes/bls12381';
+import { ElGamal } from '@/routes/elgamal';
 import { Overview } from '@/routes/overview';
 
 export function App() {
@@ -31,6 +32,14 @@ export function App() {
                     element={
                         <AppLayout>
                             <Bls12381 />
+                        </AppLayout>
+                    }
+                />
+                <Route
+                    path="/elgamal"
+                    element={
+                        <AppLayout>
+                            <ElGamal />
                         </AppLayout>
                     }
                 />

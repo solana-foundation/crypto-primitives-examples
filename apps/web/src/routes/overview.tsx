@@ -40,7 +40,8 @@ const ROWS: PrimitiveRow[] = [
         ops: 'verify ZK proofs',
         security: 'n/a',
         simd: 'SIMD-0153',
-        status: 'mainnet (coming soon here)',
+        status: 'mainnet',
+        to: '/elgamal',
     },
 ];
 
