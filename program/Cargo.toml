@@ -1,0 +1,25 @@
+[package]
+name = "crypto-primitives"
+version = { workspace = true }
+edition = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[lints]
+workspace = true
+
+[features]
+no-entrypoint = []
+idl = []
+
+[dependencies]
+codama = { workspace = true }
+pinocchio = { workspace = true }
+solana-address = { workspace = true }
+pinocchio-log = { workspace = true }
+thiserror = { workspace = true }
+
+[build-dependencies]
+codama = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,29 @@
+export type Cluster = 'devnet' | 'localnet' | 'mainnet-beta' | 'testnet';
+
+export function getClusterFromRpcUrl(rpcUrl: string): Cluster {
+    if (rpcUrl.includes('devnet')) return 'devnet';
+    if (rpcUrl.includes('mainnet')) return 'mainnet-beta';
+    if (rpcUrl.includes('testnet')) return 'testnet';
+    return 'localnet';
+}
+
+export function getClusterFromClusterId(clusterId: string): Cluster {
+    if (clusterId === 'solana:mainnet') return 'mainnet-beta';
+    if (clusterId === 'solana:testnet') return 'testnet';
+    if (clusterId === 'solana:devnet') return 'devnet';
+    return 'localnet';
+}
+
+export function getSolanaExplorerUrl(signature: string, cluster: Cluster): string {
+    const base = 'https://explorer.solana.com/tx/';
+    if (cluster === 'mainnet-beta') return `${base}${signature}`;
+    if (cluster === 'localnet') return `${base}${signature}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`;
+    return `${base}${signature}?cluster=${cluster}`;
+}
+
+export function getSolanaExplorerAddressUrl(address: string, cluster: Cluster): string {
+    const base = 'https://explorer.solana.com/address/';
+    if (cluster === 'mainnet-beta') return `${base}${address}`;
+    if (cluster === 'localnet') return `${base}${address}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`;
+    return `${base}${address}?cluster=${cluster}`;
+}
