@@ -4,7 +4,8 @@ use crate::instructions::{
     process_altbn128_g2_add, process_altbn128_g2_mul, process_bls12_381_g1_add,
     process_bls12_381_g1_mul, process_bls12_381_g1_sub, process_bls12_381_g2_add,
     process_bls12_381_g2_mul, process_bls12_381_g2_sub, process_bls254_aggregate_verify,
-    process_noop, CryptoPrimitivesInstructionDiscriminators,
+    process_multisig_add_signers, process_multisig_verify, process_noop,
+    CryptoPrimitivesInstructionDiscriminators,
 };
 
 entrypoint!(process_instruction);
@@ -50,6 +51,12 @@ pub fn process_instruction(
         }
         CryptoPrimitivesInstructionDiscriminators::Bls254AggregateVerify => {
             process_bls254_aggregate_verify(program_id, accounts, instruction_data)
+        }
+        CryptoPrimitivesInstructionDiscriminators::MultisigAddSigners => {
+            process_multisig_add_signers(program_id, accounts, instruction_data)
+        }
+        CryptoPrimitivesInstructionDiscriminators::MultisigVerify => {
+            process_multisig_verify(program_id, accounts, instruction_data)
         }
     }
 }

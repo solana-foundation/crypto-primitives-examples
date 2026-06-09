@@ -20,6 +20,12 @@ pub enum CryptoPrimitivesProgramError {
     /// (4) Aggregate signature failed pairing verification
     #[error("Aggregate signature failed pairing verification")]
     AggregateVerifyFailed,
+    /// (5) Multisig account is not owned by this program or is not writable
+    #[error("Multisig account is not owned by this program or is not writable")]
+    InvalidMultisigAccount,
+    /// (6) Multisig account does not have capacity for more signers
+    #[error("Multisig account does not have capacity for more signers")]
+    MultisigFull,
 }
 
 impl From<CryptoPrimitivesProgramError> for ProgramError {

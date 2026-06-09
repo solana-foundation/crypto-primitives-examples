@@ -9,6 +9,7 @@
 
 use pinocchio::address::declare_id;
 
+pub mod bn254;
 pub mod errors;
 pub mod instructions;
 pub mod syscall;

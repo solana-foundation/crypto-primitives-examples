@@ -71,6 +71,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.1.1
         version: 1.2.5(@types/react@19.2.17)(react@19.2.7)
+      '@solana-program/system':
+        specifier: ^0.10.0
+        version: 0.10.0(@solana/kit@6.9.0(typescript@5.9.3))
       '@solana-program/zk-elgamal-proof':
         specifier: 0.1.0
         version: 0.1.0(@solana/kit@6.9.0(typescript@5.9.3))
@@ -6758,6 +6761,10 @@ snapshots:
   '@solana-program/system@0.10.0(@solana/kit@5.5.1(typescript@5.9.3))':
     dependencies:
       '@solana/kit': 5.5.1(typescript@5.9.3)
+
+  '@solana-program/system@0.10.0(@solana/kit@6.9.0(typescript@5.9.3))':
+    dependencies:
+      '@solana/kit': 6.9.0(typescript@5.9.3)
 
   '@solana-program/system@0.12.2(@solana/kit@6.9.0(typescript@5.9.3))':
     dependencies:
