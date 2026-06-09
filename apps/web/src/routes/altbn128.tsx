@@ -1,4 +1,4 @@
-import { BlsAggregateDemo } from '@/components/bls-aggregate-demo';
+import { MultisigDemo } from '@/components/multisig-demo';
 
 export function AltBn128() {
     return (
@@ -11,7 +11,7 @@ export function AltBn128() {
                     aggregation possible directly in a program.
                 </p>
             </header>
-            <BlsAggregateDemo />
+            <MultisigDemo />
         </div>
     );
 }

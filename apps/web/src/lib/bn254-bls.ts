@@ -4,19 +4,20 @@ import * as mcl from 'mcl-wasm';
 const BN254_G2_GEN =
     '198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa';
 
-const BLS254_AGGREGATE_VERIFY_DISCRIMINATOR = 9;
+export const G2_POINT_BYTES = 128;
+export const ADD_SIGNERS_DISCRIMINATOR = 10;
+export const VERIFY_DISCRIMINATOR = 11;
+// Each pubkey is 128 bytes; keep chunks comfortably under the 1232-byte tx limit.
+export const MAX_KEYS_PER_TX = 7;
 
 let ready: Promise<void> | null = null;
 function init(): Promise<void> {
-    if (!ready) {
-        ready = mcl.init(mcl.BN_SNARK1);
-    }
+    if (!ready) ready = mcl.init(mcl.BN_SNARK1);
     return ready;
 }
 
 const be32 = (n: string) => n.padStart(64, '0');
 const chunks32 = (h: string) => h.match(/.{64}/g) ?? [];
-
 function bytes(hex: string): Uint8Array {
     return Uint8Array.from(hex.match(/../g)!.map(b => parseInt(b, 16)));
 }
@@ -37,39 +38,59 @@ function g1ToAgave(p: mcl.G1): string {
     return be32(x) + be32(y);
 }
 
-export interface AggregateSignature {
-    aggregateSignature: string;
-    instructionData: Uint8Array;
-    pubkeys: string[];
+interface KeyMaterial {
+    pubkey: string;
+    secret: mcl.Fr;
 }
 
-/**
- * Generates `signerCount` BLS keypairs, signs `message` with each, and builds the
- * instruction data for the on-chain aggregate-verify (discriminator + aggregate
- * signature + negated message hash + every public key). Everything runs locally.
- */
-export async function buildAggregateSignature(message: string, signerCount: number): Promise<AggregateSignature> {
+export interface MemberSet {
+    /** Big-endian G2 public keys, hex (for display and on-chain storage). */
+    pubkeys: string[];
+    keys: KeyMaterial[];
+}
+
+/** Generates `count` BLS keypairs in memory. The signers are not Solana wallets. */
+export async function generateMembers(count: number): Promise<MemberSet> {
     await init();
     const generator = g2FromAgave(BN254_G2_GEN);
-    const messageHash = mcl.hashAndMapToG1(new TextEncoder().encode(message));
-
-    const signers = Array.from({ length: signerCount }, () => {
+    const keys: KeyMaterial[] = Array.from({ length: count }, () => {
         const secret = new mcl.Fr();
         secret.setByCSPRNG();
-        return { pubkey: mcl.mul(generator, secret), signature: mcl.mul(messageHash, secret) };
+        return { pubkey: g2ToAgave(mcl.mul(generator, secret)), secret };
     });
+    return { keys, pubkeys: keys.map(k => k.pubkey) };
+}
 
-    const aggregateSignaturePoint = signers.reduce(
-        (acc, signer, i) => (i === 0 ? signer.signature : mcl.add(acc, signer.signature)),
-        signers[0].signature,
+export interface AggregateSignature {
+    aggregateSignature: string;
+    negatedMessageHash: string;
+}
+
+/** Has the first `signerCount` members sign `message`, returns the aggregate. */
+export async function signMessage(set: MemberSet, message: string, signerCount: number): Promise<AggregateSignature> {
+    await init();
+    const messageHash = mcl.hashAndMapToG1(new TextEncoder().encode(message));
+    const signing = set.keys.slice(0, signerCount);
+    const aggregate = signing.reduce(
+        (acc, key, i) => {
+            const signature = mcl.mul(messageHash, key.secret);
+            return i === 0 ? signature : mcl.add(acc, signature);
+        },
+        mcl.mul(messageHash, signing[0].secret),
     );
+    return {
+        aggregateSignature: g1ToAgave(aggregate),
+        negatedMessageHash: g1ToAgave(mcl.neg(messageHash)),
+    };
+}
 
-    const aggregateSignature = g1ToAgave(aggregateSignaturePoint);
-    const negatedMessageHash = g1ToAgave(mcl.neg(messageHash));
-    const pubkeys = signers.map(signer => g2ToAgave(signer.pubkey));
+export function addSignersInstructionData(pubkeys: string[]): Uint8Array {
+    return new Uint8Array([ADD_SIGNERS_DISCRIMINATOR, ...bytes(pubkeys.join(''))]);
+}
 
-    const body = aggregateSignature + negatedMessageHash + pubkeys.join('');
-    const instructionData = new Uint8Array([BLS254_AGGREGATE_VERIFY_DISCRIMINATOR, ...bytes(body)]);
-
-    return { aggregateSignature, instructionData, pubkeys };
+export function verifyInstructionData(aggregate: AggregateSignature): Uint8Array {
+    return new Uint8Array([
+        VERIFY_DISCRIMINATOR,
+        ...bytes(aggregate.aggregateSignature + aggregate.negatedMessageHash),
+    ]);
 }
