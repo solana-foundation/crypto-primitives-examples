@@ -22,6 +22,10 @@ generate-clients: generate-idl
 build: generate-idl generate-clients
     cd program && cargo-build-sbf
 
+# Boot a local validator, auto-fund the local wallet, and deploy the program
+localnet:
+    ./scripts/localnet.sh
+
 # Run the demo web app (dev server)
 web-dev: generate-clients
     pnpm --filter @solana/crypto-primitives-client build

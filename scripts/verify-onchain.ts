@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import os from 'node:os';
 
 import {
     address,
@@ -36,7 +35,7 @@ async function main() {
     const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
 
     const keypairBytes = Uint8Array.from(
-        JSON.parse(readFileSync(`${os.homedir()}/.config/solana/id.json`, 'utf8')) as number[],
+        JSON.parse(readFileSync(new URL('../keypairs/local-wallet.json', import.meta.url), 'utf8')) as number[],
     );
     const signer = await createKeyPairSignerFromBytes(keypairBytes);
 

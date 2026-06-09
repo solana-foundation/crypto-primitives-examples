@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import os from 'node:os';
 
 import {
     appendTransactionMessageInstructions,
@@ -64,7 +63,11 @@ async function main() {
     const rpc = createSolanaRpc('http://127.0.0.1:8899');
     const rpcSubscriptions = createSolanaRpcSubscriptions('ws://127.0.0.1:8900');
     const signer = await createKeyPairSignerFromBytes(
-        Uint8Array.from(JSON.parse(readFileSync(`${os.homedir()}/.config/solana/id.json`, 'utf8')) as number[]),
+        Uint8Array.from(
+            JSON.parse(
+                readFileSync(new URL('../../../keypairs/local-wallet.json', import.meta.url), 'utf8'),
+            ) as number[],
+        ),
     );
 
     const g2gen = g2FromAgave(BN254_G2_GEN);
