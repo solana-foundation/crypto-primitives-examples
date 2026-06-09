@@ -1,0 +1,6 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "buildCommand": "pnpm generate-clients && pnpm --filter @solana/crypto-primitives-client build && pnpm --filter @solana/crypto-primitives-web build",
+    "outputDirectory": "apps/web/dist",
+    "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

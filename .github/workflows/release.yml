@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      priority-fee:
+        description: Priority fee (microlamports per CU)
+        type: string
+        default: '100000'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: release-devnet
+  cancel-in-progress: false
+
+env:
+  PROGRAM: crypto_primitives
+  PROGRAM_ID: EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw
+
+jobs:
+  release:
+    name: Release devnet
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Load deploy config from Doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_SERVICE_IDENTITY_ID }}
+          doppler-project: crypto-primitives
+          doppler-config: stg_github
+          inject-env-vars: true
+
+      - uses: ./.github/actions/setup
+        with:
+          rust-cache-key: 'release-devnet'
+          solana-version: 'v4.0.0'
+
+      - name: Materialize deployer keypair
+        run: |
+          install -m 600 /dev/null /tmp/deployer.json
+          printf '%s' "$DEPLOYER_KEYPAIR" > /tmp/deployer.json
+
+      - name: Generate IDL
+        run: just generate-idl
+
+      - name: Build program
+        run: just build-sbf
+
+      - name: Deploy program (devnet)
+        run: |
+          solana program deploy target/deploy/${PROGRAM}.so \
+            --program-id "$PROGRAM_ID" \
+            --keypair /tmp/deployer.json \
+            --url "$RPC_URL" \
+            --with-compute-unit-price "${{ inputs.priority-fee }}"
+
+      - name: Upload IDL via program-metadata (devnet)
+        uses: solana-developers/github-actions/metadata-upload@eb606791e11d06eb92593dfd3404bf0d4c809121
+        with:
+          program-id: ${{ env.PROGRAM_ID }}
+          rpc-url: ${{ env.RPC_URL }}
+          keypair: ${{ env.DEPLOYER_KEYPAIR }}
+          idl-path: idl/${{ env.PROGRAM }}.json
+          priority-fees: ${{ inputs.priority-fee }}
+
+      - name: Cleanup keypair
+        if: always()
+        run: rm -f /tmp/deployer.json
+
+      - name: Summary
+        run: |
+          echo "## Release: devnet" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Program: \`${{ env.PROGRAM_ID }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- IDL: uploaded via program-metadata" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
