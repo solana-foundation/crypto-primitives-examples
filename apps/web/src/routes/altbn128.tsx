@@ -1,24 +1,33 @@
+import { BlsAggregateDemo } from '@/components/bls-aggregate-demo';
 import { DemoPanel } from '@/components/demo-panel';
 import { demosForGroup } from '@/lib/primitives';
 
 export function AltBn128() {
     const demos = demosForGroup('altbn128');
     return (
-        <div className="space-y-8">
+        <div className="space-y-10">
             <header className="max-w-3xl space-y-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">alt_bn128 G2 (SIMD-0302)</h1>
                 <p className="text-muted-foreground">
-                    Extends the existing BN254 syscall with native G2 point arithmetic. Previously only G1 ops, pairing,
-                    and G2 compression existed — G2 add and scalar-mul had to be emulated client-side. Useful for
-                    Groth16 verifiers and proof compression. Note: agave 4.0 ships add and scalar-mul only — there is no
-                    G2 subtraction op (BLS12-381 has one).
+                    Native G2 point arithmetic on BN254 — add and scalar-mul. The missing piece that lets you combine G2
+                    elements on-chain (the curve already had G1 ops and pairings). Below: a real use case it unlocks,
+                    then the raw operations for developers.
                 </p>
             </header>
-            <div className="grid gap-5 lg:grid-cols-2">
-                {demos.map(demo => (
-                    <DemoPanel demo={demo} key={demo.id} />
-                ))}
-            </div>
+
+            <section className="space-y-3">
+                <h2 className="text-sm font-medium tracking-wide text-sand-1100 uppercase">What it unlocks</h2>
+                <BlsAggregateDemo />
+            </section>
+
+            <section className="space-y-3">
+                <h2 className="text-sm font-medium tracking-wide text-sand-1100 uppercase">The raw operations</h2>
+                <div className="grid gap-5 lg:grid-cols-2">
+                    {demos.map(demo => (
+                        <DemoPanel demo={demo} key={demo.id} />
+                    ))}
+                </div>
+            </section>
         </div>
     );
 }

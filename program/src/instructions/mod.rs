@@ -1,10 +1,12 @@
 pub mod altbn128_g2;
 pub mod bls12_381;
+pub mod bls254_aggregate;
 pub mod definition;
 pub mod noop;
 
 pub use altbn128_g2::*;
 pub use bls12_381::*;
+pub use bls254_aggregate::*;
 #[cfg(feature = "idl")]
 pub use definition::*;
 pub use noop::*;
@@ -23,6 +25,7 @@ pub enum CryptoPrimitivesInstructionDiscriminators {
     Bls12381G2Add = 6,
     Bls12381G2Sub = 7,
     Bls12381G2Mul = 8,
+    Bls254AggregateVerify = 9,
 }
 
 impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
@@ -39,6 +42,7 @@ impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
             6 => Ok(Self::Bls12381G2Add),
             7 => Ok(Self::Bls12381G2Sub),
             8 => Ok(Self::Bls12381G2Mul),
+            9 => Ok(Self::Bls254AggregateVerify),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

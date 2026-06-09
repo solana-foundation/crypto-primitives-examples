@@ -17,6 +17,9 @@ pub enum CryptoPrimitivesProgramError {
     /// (3) Syscall is only available on-chain
     #[error("Syscall is only available on-chain")]
     SyscallUnavailable,
+    /// (4) Aggregate signature failed pairing verification
+    #[error("Aggregate signature failed pairing verification")]
+    AggregateVerifyFailed,
 }
 
 impl From<CryptoPrimitivesProgramError> for ProgramError {

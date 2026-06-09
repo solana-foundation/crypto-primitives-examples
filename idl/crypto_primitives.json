@@ -28,6 +28,12 @@
         "kind": "errorNode",
         "message": "Syscall is only available on-chain",
         "name": "syscallUnavailable"
+      },
+      {
+        "code": 4,
+        "kind": "errorNode",
+        "message": "Aggregate signature failed pairing verification",
+        "name": "aggregateVerifyFailed"
       }
     ],
     "instructions": [
