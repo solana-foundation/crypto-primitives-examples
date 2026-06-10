@@ -35,6 +35,9 @@ solana airdrop "$AIRDROP_SOL" "$WALLET" --url "$RPC" >/dev/null
 solana program deploy "$PROGRAM_SO" --program-id "$PROGRAM_KEYPAIR" \
     --keypair "$WALLET_KEYPAIR" --url "$RPC" >/dev/null
 
+# Let the web app sign with the funded local wallet (localnet dev only).
+echo "VITE_LOCAL_WALLET_SECRET=$(cat "$WALLET_KEYPAIR")" >apps/web/.env.local
+
 echo ""
 echo "  Local validator ready at $RPC"
 echo "  Local wallet     : $WALLET  (${AIRDROP_SOL} SOL)"

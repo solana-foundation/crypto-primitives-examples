@@ -1,27 +1,32 @@
-import { createKeyPairSignerFromPrivateKeyBytes, type KeyPairSigner } from '@solana/kit';
+import { createKeyPairSignerFromBytes, type KeyPairSigner } from '@solana/kit';
 
 const SEED_KEY = 'crypto-primitives-demo-wallet-seed';
 
-function loadOrCreateSeed(): Uint8Array {
+const viteEnv = import.meta.env as unknown as { readonly VITE_LOCAL_WALLET_SECRET?: string };
+
+function randomSeedSigner(): Promise<KeyPairSigner> {
     const stored = localStorage.getItem(SEED_KEY);
-    if (stored) {
-        return Uint8Array.from(atob(stored), c => c.charCodeAt(0));
-    }
-    const seed = crypto.getRandomValues(new Uint8Array(32));
-    localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
-    return seed;
+    const seed = stored
+        ? Uint8Array.from(atob(stored), c => c.charCodeAt(0))
+        : crypto.getRandomValues(new Uint8Array(64));
+    if (!stored) localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
+    return createKeyPairSignerFromBytes(seed);
 }
 
 let cached: Promise<KeyPairSigner> | null = null;
 
 /**
- * A throwaway fee-payer kept in localStorage — used only to pay for the demo's
- * transactions on localnet. Not a real wallet; it just needs lamports from the
- * faucet so the demo can run without a browser wallet.
+ * The fee-payer for the demo's transactions. On localnet this is the
+ * `local-wallet.json` keypair that `just localnet` already funds (injected via
+ * `VITE_LOCAL_WALLET_SECRET`). Otherwise falls back to a random localStorage
+ * burner. Localnet only — never a real key.
  */
 export function getDemoWallet(): Promise<KeyPairSigner> {
     if (!cached) {
-        cached = createKeyPairSignerFromPrivateKeyBytes(loadOrCreateSeed());
+        const secret = viteEnv.VITE_LOCAL_WALLET_SECRET;
+        cached = secret
+            ? createKeyPairSignerFromBytes(Uint8Array.from(JSON.parse(secret) as number[]))
+            : randomSeedSigner();
     }
     return cached;
 }
@@ -31,7 +36,7 @@ interface AirdropRpc {
     requestAirdrop(address: KeyPairSigner['address'], lamports: bigint): { send(): Promise<string> };
 }
 
-/** Tops the demo wallet up from the faucet if it is running low (localnet only). */
+/** Tops the demo wallet up from the faucet only if it is running low. */
 export async function ensureFunded(rpc: AirdropRpc, signer: KeyPairSigner, minSol = 5): Promise<void> {
     const balance = (await rpc.getBalance(signer.address).send()).value;
     if (balance >= BigInt(minSol) * 1_000_000_000n) return;
