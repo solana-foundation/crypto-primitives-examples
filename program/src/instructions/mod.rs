@@ -1,6 +1,7 @@
 pub mod altbn128_g2;
 pub mod bls12_381;
 pub mod bls254_aggregate;
+pub mod bls_registry;
 pub mod definition;
 pub mod multisig;
 pub mod noop;
@@ -8,6 +9,7 @@ pub mod noop;
 pub use altbn128_g2::*;
 pub use bls12_381::*;
 pub use bls254_aggregate::*;
+pub use bls_registry::*;
 pub use multisig::*;
 #[cfg(feature = "idl")]
 pub use definition::*;
@@ -30,6 +32,8 @@ pub enum CryptoPrimitivesInstructionDiscriminators {
     Bls254AggregateVerify = 9,
     MultisigAddSigners = 10,
     MultisigVerify = 11,
+    BlsRegistryAdd = 12,
+    BlsRegistryRemove = 13,
 }
 
 impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
@@ -49,6 +53,8 @@ impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
             9 => Ok(Self::Bls254AggregateVerify),
             10 => Ok(Self::MultisigAddSigners),
             11 => Ok(Self::MultisigVerify),
+            12 => Ok(Self::BlsRegistryAdd),
+            13 => Ok(Self::BlsRegistryRemove),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
