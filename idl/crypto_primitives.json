@@ -34,6 +34,18 @@
         "kind": "errorNode",
         "message": "Aggregate signature failed pairing verification",
         "name": "aggregateVerifyFailed"
+      },
+      {
+        "code": 5,
+        "kind": "errorNode",
+        "message": "Multisig account is not owned by this program or is not writable",
+        "name": "invalidMultisigAccount"
+      },
+      {
+        "code": 6,
+        "kind": "errorNode",
+        "message": "Multisig account does not have capacity for more signers",
+        "name": "multisigFull"
       }
     ],
     "instructions": [
