@@ -43,13 +43,8 @@ jobs:
 
       - uses: ./.github/actions/setup
         with:
-          install-rust: 'false'
           install-solana: 'false'
-          install-just: 'false'
-          enable-rust-cache: 'false'
-
-      - name: Build TypeScript client
-        run: pnpm --filter @solana/crypto-primitives-client build
+          rust-cache-key: 'web-build'
 
       - name: Build web app
-        run: pnpm --filter @solana/crypto-primitives-web build
+        run: just web-build

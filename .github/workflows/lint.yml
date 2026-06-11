@@ -26,5 +26,8 @@ jobs:
           install-solana: 'false'
           rust-cache-key: 'lint'
 
+      - name: Generate clients
+        run: just generate-clients
+
       - name: Check linting
         run: just lint-check
