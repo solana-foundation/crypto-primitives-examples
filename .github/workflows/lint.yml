@@ -26,8 +26,10 @@ jobs:
           install-solana: 'false'
           rust-cache-key: 'lint'
 
-      - name: Generate clients
-        run: just generate-clients
+      - name: Generate and build TypeScript client
+        run: |
+          just generate-clients
+          pnpm --filter @solana/crypto-primitives-client build
 
       - name: Check linting
         run: just lint-check
