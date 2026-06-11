@@ -1,4 +1,4 @@
-export type Cluster = 'devnet' | 'mainnet-beta' | 'testnet' | 'localnet';
+export type Cluster = 'devnet' | 'localnet' | 'mainnet-beta' | 'testnet';
 
 export function getClusterFromRpcUrl(rpcUrl: string): Cluster {
     if (rpcUrl.includes('devnet')) return 'devnet';

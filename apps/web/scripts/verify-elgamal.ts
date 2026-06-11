@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 
-import { verifyPubkeyValidity } from '@solana-program/zk-elgamal-proof';
 import {
     appendTransactionMessageInstructions,
     createKeyPairSignerFromBytes,
@@ -15,6 +14,7 @@ import {
     signTransactionMessageWithSigners,
 } from '@solana/kit';
 import { ElGamalKeypair, PubkeyValidityProofData } from '@solana/zk-sdk/node';
+import { verifyPubkeyValidity } from '@solana-program/zk-elgamal-proof';
 
 async function main() {
     const rpc = createSolanaRpc('http://127.0.0.1:8899');

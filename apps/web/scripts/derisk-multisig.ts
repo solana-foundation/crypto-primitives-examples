@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 
-import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     address,
     appendTransactionMessageInstructions,
@@ -18,6 +17,7 @@ import {
     signTransactionMessageWithSigners,
     type TransactionSigner,
 } from '@solana/kit';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import * as mcl from 'mcl-wasm';
 
 const PROGRAM = address('EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw');
@@ -70,7 +70,9 @@ async function main() {
     await mcl.init(mcl.BN_SNARK1);
     const payer = await createKeyPairSignerFromBytes(
         Uint8Array.from(
-            JSON.parse(readFileSync(new URL('../../../keypairs/local-wallet.json', import.meta.url), 'utf8')),
+            JSON.parse(
+                readFileSync(new URL('../../../keypairs/local-wallet.json', import.meta.url), 'utf8'),
+            ) as number[],
         ),
     );
 

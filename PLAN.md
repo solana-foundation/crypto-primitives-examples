@@ -22,6 +22,7 @@ what each does, how they differ, what's newly possible, what they're good/bad fo
 with **live, interactive devnet demos**.
 
 Done when:
+
 - A deployed web app lets a user feed inputs to each primitive and see real on-chain
   output + compute-unit (CU) cost + an explorer link, on devnet.
 - Each primitive has layered content: narrative ("why care") on top, drill-down
@@ -32,18 +33,19 @@ Done when:
 
 All three verified **live on devnet** on 2026-06-08 via direct RPC (not docs — docs are stale):
 
-| Primitive | SIMD | Kind | Devnet | Testnet | Mainnet |
-|---|---|---|---|---|---|
-| alt_bn128 G2 | 0302 | syscall (extends `sol_alt_bn128_group_op`) | ✅ | ✅ | ⏳ pending |
-| BLS12-381 | 0388 | new syscall family | ✅ | ✅ | ⏳ pending |
-| ZK ElGamal Proof Program | 0153 (re-enabled) | native program `ZkE1Gama1Proof111…` | ✅ | ✅ | ✅ |
+| Primitive                | SIMD              | Kind                                       | Devnet | Testnet | Mainnet    |
+| ------------------------ | ----------------- | ------------------------------------------ | ------ | ------- | ---------- |
+| alt_bn128 G2             | 0302              | syscall (extends `sol_alt_bn128_group_op`) | ✅     | ✅      | ⏳ pending |
+| BLS12-381                | 0388              | new syscall family                         | ✅     | ✅      | ⏳ pending |
+| ZK ElGamal Proof Program | 0153 (re-enabled) | native program `ZkE1Gama1Proof111…`        | ✅     | ✅      | ✅         |
 
 Re-enable feature gate `zkexuyPRdyTVbZqEAREueqL2xvvoBhRgth9xGSc1tMN` activated on devnet
 (slot 455760000), testnet, and mainnet. ZK ElGamal Proof Program builtin is executable on devnet.
 
 ### 2a. alt_bn128 G2 (SIMD-0302)
+
 - **What:** extends existing BN254 syscall to native **G2** point arithmetic — **add and scalar-mul only**. Previously only G1 ops + pairing + G2 compression existed; G2 arithmetic was missing (not in the Ethereum precompile it was modeled on).
-- **No subtraction:** the SIMD draft mentions sub, but shipped agave 4.0 `sol_alt_bn128_group_op` implements **only** add/mul/pairing — sub op-codes (G1=1, G2=5) return `InvalidAttribute` (verified in `agave-syscalls-4.0.0`). Contrast: BLS12-381 *does* expose native sub. Good showcase talking point.
+- **No subtraction:** the SIMD draft mentions sub, but shipped agave 4.0 `sol_alt_bn128_group_op` implements **only** add/mul/pairing — sub op-codes (G1=1, G2=5) return `InvalidAttribute` (verified in `agave-syscalls-4.0.0`). Contrast: BLS12-381 _does_ expose native sub. Good showcase talking point.
 - **Differs:** incremental completion of BN254. Add skips the subgroup check (curve-equation check only) for cheap accumulation; scalar-mul does full validation (field + curve + subgroup) to safely allow endomorphism-based mul.
 - **Encoding:** big-endian, plus little-endian variants per SIMD-0284 (`OP | 0x80`) — LE matches `ark-bn254`, friendlier to Ethereum/ZK tooling.
 - **Good for:** Groth16 verifiers, Groth16 proof **compression** (256→128 bytes/proof), ZK apps on the existing curve, removing client-side G2 workarounds.
@@ -51,6 +53,7 @@ Re-enable feature gate `zkexuyPRdyTVbZqEAREueqL2xvvoBhRgth9xGSc1tMN` activated o
 - **VERIFIED (Phase 2):** `sol_alt_bn128_group_op(group_op, input, input_size, result)`, single concatenated input buffer. G2 ADD=4, MUL=6 (LE = `|0x80`). G2 point = 128 B uncompressed. add: 256→128 B. mul: 160 B (128 point + 32 B BE scalar) → 128 B. Measured CU (Mollusk/agave 4.0): **add 702, mul 15839**.
 
 ### 2b. BLS12-381 (SIMD-0388) — the headline
+
 - **What:** new syscall family. Group ops (add, sub/negate, scalar-mul) in **both G1 and G2**. 128-bit security pairing-friendly curve; same curve Ethereum uses.
 - **Differs:** higher security than BN254; cross-ecosystem standard; foundation for **Alpenglow consensus** (SIMD-0326) and **BLS signature aggregation**.
 - **Encoding:** Zcash canonical big-endian. G1 = 48B compressed / 96B uncompressed; G2 = 96B / 192B.
@@ -59,6 +62,7 @@ Re-enable feature gate `zkexuyPRdyTVbZqEAREueqL2xvvoBhRgth9xGSc1tMN` activated o
 - **VERIFIED (Phase 2):** uses the shared `sol_curve_group_op(curve_id, group_op, left, right, result)` syscall (NOT a bespoke family) — separate left/right pointers. curve_id BE: G1 = `5|0x80` = 133, G2 = `6|0x80` = 134. group_op ADD=0, SUB=1, MUL=2 (**sub supported**). G1 point 96 B, G2 point 192 B, scalar 32 B. add/sub: left+right both points; mul: left = scalar, right = point. BE encoding = blstrs uncompressed. Reachable via `pinocchio::syscalls` (no extra dep). Measured CU: **G1 add 302 / sub 301 / mul 4799; G2 add 375 / sub 376 / mul 8429**.
 
 ### 2c. ZK ElGamal Proof Program (SIMD-0153, re-enabled)
+
 - **What:** native program that **verifies zero-knowledge proofs** over ElGamal ciphertexts and Pedersen commitments. Underpins Token-2022 confidential transfers (twisted ElGamal — encrypt balances, still do homomorphic addition).
 - **Context:** disabled June 2025 (Fiat-Shamir "phantom challenge" soundness bug — a challenge value omitted from the transcript allowed forged sigma-OR proofs). Audited, hardened, **re-enabled** (confirmed live on devnet).
 - **Differs from the other two:** NOT a syscall and NOT our program — proofs are **generated client-side** (`solana-zk-sdk`), then submitted to the native program for verification. Instruction set includes e.g. VerifyPubkeyValidity, VerifyZeroCiphertext, VerifyCiphertextCommitmentEquality, VerifyCiphertextCiphertextEquality, VerifyBatchedRangeProofU64/U128/U256, VerifyGroupedCiphertext2/3Handles, VerifyPercentageWithCap.
@@ -98,6 +102,7 @@ call it directly from the client.
 ## 4. Layered audience model
 
 Each primitive page:
+
 - **Top (everyone):** one-line "what's now possible", a use-case or two, the good/bad-for, a diagram.
 - **Drill-down (devs):** syscall signature / instruction, byte encoding, copy-paste call snippet,
   measured CU, explorer link to a live example tx.
@@ -130,6 +135,7 @@ verified under Mollusk but **not yet deployed to devnet** — needed for the liv
 - **CU numbers** — ✅ measured under Mollusk (agave 4.0); see §2a/§2b. Re-confirm on devnet before publishing.
 
 ## 7. Hosting / distribution (decide later)
+
 - Where to host the site (Vercel / Cloudflare / SF infra)?
 - Open-source the repo as a reference example for devs?
 - Companion writeup (blog) linking to the live demos?

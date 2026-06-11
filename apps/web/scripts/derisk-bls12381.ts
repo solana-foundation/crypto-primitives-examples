@@ -7,8 +7,8 @@ const BLS_G2_GEN =
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
 
 function main() {
-    const G2 = (bls12_381 as any).G2.Point;
-    const bls = (bls12_381 as any).shortSignatures; // G1 sigs, G2 pubkeys
+    const G2 = bls12_381.G2.Point;
+    const bls = bls12_381.shortSignatures; // G1 sigs, G2 pubkeys
 
     // 1. Format: noble's uncompressed G2 generator vs blstrs/agave.
     const genUncompressed = hex(G2.BASE.toBytes(false));
