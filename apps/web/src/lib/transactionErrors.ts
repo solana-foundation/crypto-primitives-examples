@@ -7,7 +7,7 @@ import {
 
 const KNOWN_ERROR_CODES = new Set([0, 1, 2, 3]);
 
-function customErrorCode(error: unknown): number | undefined {
+export function customErrorCode(error: unknown): number | undefined {
     if (isSolanaError(error, SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM)) {
         return Number(error.context.code);
     }

@@ -1,23 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import { Badge, Button } from '@solana/design-system';
-import { AccountRole, type Address, generateKeyPairSigner, type Instruction, type KeyPairSigner } from '@solana/kit';
+import {
+    AccountRole,
+    type Address,
+    generateKeyPairSigner,
+    type Instruction,
+    type KeyPairSigner,
+    type Signature,
+} from '@solana/kit';
 
 import { useWalletTransactionSignAndSend } from '@/components/solana/use-wallet-transaction-sign-and-send';
+import { useClusterConfig } from '@/hooks/use-cluster-config';
+import { useRpc } from '@/hooks/useRpc';
 import {
     generateMember,
     type Member,
     memberInstructionData,
+    memberSecret,
     REGISTRY_ACCOUNT_SIZE,
     REGISTRY_ADD_DISCRIMINATOR,
     REGISTRY_REMOVE_DISCRIMINATOR,
+    restoreMember,
     verifyAgainstOnChainKey,
 } from '@/lib/bls12381';
+import { clearDemoState, loadDemoState, saveDemoState } from '@/lib/demo-storage';
 import { ensureFunded, getDemoWallet } from '@/lib/demo-wallet';
+import { getClusterFromClusterId } from '@/lib/explorer';
 import { base64ToBytes, bytesToHex } from '@/lib/hex';
 import { getProgramAddress } from '@/lib/program';
 import { ellipsify } from '@/lib/utils';
-import { useRpc } from '@/hooks/useRpc';
 
 interface Row {
     id: number;
@@ -33,9 +45,20 @@ interface VerifyResult {
     signerCount: number;
 }
 
+interface LastOp {
+    computeUnits: bigint | null;
+    label: string;
+}
+
+interface StoredRegistry {
+    registry: string;
+    rows: { id: number; in: boolean; secret: string; sign: boolean }[];
+}
+
 export function BlsRegistryDemo() {
     const rpc = useRpc();
     const signAndSend = useWalletTransactionSignAndSend();
+    const { id: clusterId } = useClusterConfig();
 
     const [wallet, setWallet] = useState<KeyPairSigner | null>(null);
     const [registry, setRegistry] = useState<Address | null>(null);
@@ -43,16 +66,56 @@ export function BlsRegistryDemo() {
     const [message, setMessage] = useState('approve proposal #42');
     const [busy, setBusy] = useState<string | null>(null);
     const [result, setResult] = useState<VerifyResult | null>(null);
+    const [lastOp, setLastOp] = useState<LastOp | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const members = useRef(new Map<number, Member>());
     const nextId = useRef(0);
+    const storageKey = `crypto-primitives-registry-demo:${clusterId}`;
 
     useEffect(() => {
         getDemoWallet()
             .then(setWallet)
             .catch(() => undefined);
     }, []);
+
+    useEffect(() => {
+        const stored = loadDemoState<StoredRegistry>(storageKey);
+        if (!stored || members.current.size > 0) return;
+        let cancelled = false;
+        (async () => {
+            const info = await rpc.getAccountInfo(stored.registry as Address, { encoding: 'base64' }).send();
+            if (cancelled) return;
+            if (!info.value) {
+                clearDemoState(storageKey);
+                return;
+            }
+            const restored = stored.rows.map(row => {
+                const member = restoreMember(row.secret);
+                members.current.set(row.id, member);
+                return { id: row.id, in: row.in, pubkey: member.pubkey, sign: row.sign };
+            });
+            nextId.current = stored.rows.reduce((max, row) => Math.max(max, row.id), -1) + 1;
+            setRegistry(stored.registry as Address);
+            setRows(restored);
+        })().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [rpc, storageKey]);
+
+    useEffect(() => {
+        if (!registry || rows.length === 0) return;
+        saveDemoState(storageKey, {
+            registry,
+            rows: rows.map(row => ({
+                id: row.id,
+                in: row.in,
+                secret: memberSecret(members.current.get(row.id)!),
+                sign: row.sign,
+            })),
+        } satisfies StoredRegistry);
+    }, [registry, rows, storageKey]);
 
     async function ensureRegistry(payer: KeyPairSigner): Promise<Address> {
         if (registry) return registry;
@@ -82,16 +145,31 @@ export function BlsRegistryDemo() {
         };
     }
 
+    async function recordLastOp(signature: string, label: string) {
+        const tx = await rpc
+            .getTransaction(signature as Signature, {
+                commitment: 'confirmed',
+                encoding: 'json',
+                maxSupportedTransactionVersion: 0,
+            })
+            .send();
+        setLastOp({ computeUnits: tx?.meta?.computeUnitsConsumed ?? null, label });
+    }
+
     async function addMember() {
         if (!wallet) return;
         setBusy('add');
         setError(null);
         setResult(null);
         try {
-            await ensureFunded(rpc, wallet);
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
             const registryAddress = await ensureRegistry(wallet);
             const member = generateMember();
-            await signAndSend([instructionFor(member, registryAddress, REGISTRY_ADD_DISCRIMINATOR)], wallet);
+            const signature = await signAndSend(
+                [instructionFor(member, registryAddress, REGISTRY_ADD_DISCRIMINATOR)],
+                wallet,
+            );
+            await recordLastOp(signature, 'G2 add');
             const id = nextId.current++;
             members.current.set(id, member);
             setRows(prev => [...prev, { id, in: true, pubkey: member.pubkey, sign: true }]);
@@ -110,7 +188,8 @@ export function BlsRegistryDemo() {
         try {
             const member = members.current.get(row.id)!;
             const discriminator = row.in ? REGISTRY_REMOVE_DISCRIMINATOR : REGISTRY_ADD_DISCRIMINATOR;
-            await signAndSend([instructionFor(member, registry, discriminator)], wallet);
+            const signature = await signAndSend([instructionFor(member, registry, discriminator)], wallet);
+            await recordLastOp(signature, row.in ? 'G2 sub' : 'G2 add');
             setRows(prev => prev.map(r => (r.id === row.id ? { ...r, in: !r.in } : r)));
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Update failed');
@@ -172,7 +251,7 @@ export function BlsRegistryDemo() {
                 <label className="block">
                     <span className="text-xs font-medium text-sand-1100">Message</span>
                     <input
-                        className="mt-1 w-64 rounded-lg border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        className="mt-1 block w-64 rounded-lg border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         onChange={e => setMessage(e.target.value)}
                         value={message}
                     />
@@ -194,6 +273,14 @@ export function BlsRegistryDemo() {
             {registry && (
                 <div className="text-xs text-sand-1100">
                     registry {ellipsify(registry, 4)} · {inCount} active / {rows.length} total
+                    {lastOp && lastOp.computeUnits != null && (
+                        <>
+                            {' '}
+                            · last op {lastOp.label} ·{' '}
+                            <span className="font-medium text-foreground">{lastOp.computeUnits.toLocaleString()}</span>{' '}
+                            CU
+                        </>
+                    )}
                 </div>
             )}
 

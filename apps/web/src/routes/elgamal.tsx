@@ -9,8 +9,7 @@ export function ElGamal() {
                     Unlike the two curve families, this isn't a syscall and isn't our program. The ZK ElGamal Proof
                     program is a native verifier that ships with the validator; proofs are generated client-side and
                     submitted for on-chain verification. It underpins Token-2022 confidential transfers — encrypted
-                    balances you can still compute on. Disabled after a June 2025 soundness bug, audited, and re-enabled
-                    in the agave 4.0 cycle.
+                    balances you can still compute on.
                 </p>
             </header>
             <div className="grid gap-5 lg:grid-cols-2">

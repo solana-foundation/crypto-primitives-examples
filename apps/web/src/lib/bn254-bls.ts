@@ -44,9 +44,9 @@ interface KeyMaterial {
 }
 
 export interface MemberSet {
+    keys: KeyMaterial[];
     /** Big-endian G2 public keys, hex (for display and on-chain storage). */
     pubkeys: string[];
-    keys: KeyMaterial[];
 }
 
 /** Generates `count` BLS keypairs in memory. The signers are not Solana wallets. */
@@ -56,6 +56,20 @@ export async function generateMembers(count: number): Promise<MemberSet> {
     const keys: KeyMaterial[] = Array.from({ length: count }, () => {
         const secret = new mcl.Fr();
         secret.setByCSPRNG();
+        return { pubkey: g2ToAgave(mcl.mul(generator, secret)), secret };
+    });
+    return { keys, pubkeys: keys.map(k => k.pubkey) };
+}
+
+export function memberSecrets(set: MemberSet): string[] {
+    return set.keys.map(k => k.secret.serializeToHexStr());
+}
+
+export async function restoreMembers(secrets: string[]): Promise<MemberSet> {
+    await init();
+    const generator = g2FromAgave(BN254_G2_GEN);
+    const keys: KeyMaterial[] = secrets.map(s => {
+        const secret = mcl.deserializeHexStrToFr(s);
         return { pubkey: g2ToAgave(mcl.mul(generator, secret)), secret };
     });
     return { keys, pubkeys: keys.map(k => k.pubkey) };

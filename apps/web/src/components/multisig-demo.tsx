@@ -10,7 +10,10 @@ import {
     type Signature,
 } from '@solana/kit';
 
-import { useWalletTransactionSignAndSend } from '@/components/solana/use-wallet-transaction-sign-and-send';
+import {
+    OnChainTransactionError,
+    useWalletTransactionSignAndSend,
+} from '@/components/solana/use-wallet-transaction-sign-and-send';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
 import {
@@ -19,12 +22,16 @@ import {
     type MemberSet,
     MAX_KEYS_PER_TX,
     G2_POINT_BYTES,
+    memberSecrets,
+    restoreMembers,
     signMessage,
     verifyInstructionData,
 } from '@/lib/bn254-bls';
+import { clearDemoState, loadDemoState, saveDemoState } from '@/lib/demo-storage';
 import { ensureFunded, getDemoWallet } from '@/lib/demo-wallet';
 import { getClusterFromClusterId, getSolanaExplorerUrl } from '@/lib/explorer';
 import { getProgramAddress } from '@/lib/program';
+import { formatTransactionError } from '@/lib/transactionErrors';
 import { ellipsify } from '@/lib/utils';
 
 type Phase = 'idle' | 'creating' | 'ready' | 'verifying';
@@ -34,6 +41,11 @@ interface VerifyResult {
     computeUnits: bigint | null;
     ok: boolean;
     signature: string | null;
+}
+
+interface StoredMultisig {
+    multisig: string;
+    secrets: string[];
 }
 
 export function MultisigDemo() {
@@ -53,12 +65,46 @@ export function MultisigDemo() {
     const [error, setError] = useState<string | null>(null);
 
     const memberSet = useRef<MemberSet | null>(null);
+    const storageKey = `crypto-primitives-multisig-demo:${clusterId}`;
 
     useEffect(() => {
         getDemoWallet()
             .then(setWallet)
             .catch(() => undefined);
     }, []);
+
+    useEffect(() => {
+        const stored = loadDemoState<StoredMultisig>(storageKey);
+        if (!stored || memberSet.current) return;
+        let cancelled = false;
+        (async () => {
+            const info = await rpc.getAccountInfo(stored.multisig as Address, { encoding: 'base64' }).send();
+            if (cancelled) return;
+            if (!info.value) {
+                clearDemoState(storageKey);
+                return;
+            }
+            const set = await restoreMembers(stored.secrets);
+            if (cancelled) return;
+            memberSet.current = set;
+            setMembers(set.pubkeys);
+            setMemberCount(set.pubkeys.length);
+            setApprovals(set.pubkeys.length);
+            setMultisig(stored.multisig as Address);
+            setPhase('ready');
+        })().catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [rpc, storageKey]);
+
+    useEffect(() => {
+        if (!multisig || !memberSet.current) return;
+        saveDemoState(storageKey, {
+            multisig,
+            secrets: memberSecrets(memberSet.current),
+        } satisfies StoredMultisig);
+    }, [multisig, storageKey]);
 
     async function setup() {
         if (!wallet) return;
@@ -67,7 +113,7 @@ export function MultisigDemo() {
         setResult(null);
         setMultisig(null);
         try {
-            await ensureFunded(rpc, wallet);
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
 
             const set = await generateMembers(memberCount);
             memberSet.current = set;
@@ -123,26 +169,30 @@ export function MultisigDemo() {
                 data: verifyInstructionData(aggregate),
                 programAddress: getProgramAddress(),
             };
+            let signature: string;
+            let ok = true;
             try {
-                const signature = await signAndSend([instruction], wallet);
-                const tx = await rpc
-                    .getTransaction(signature as Signature, {
-                        commitment: 'confirmed',
-                        encoding: 'json',
-                        maxSupportedTransactionVersion: 0,
-                    })
-                    .send();
-                setResult({
-                    approvals,
-                    computeUnits: tx?.meta?.computeUnitsConsumed ?? null,
-                    ok: true,
-                    signature,
-                });
-            } catch {
-                setResult({ approvals, computeUnits: null, ok: false, signature: null });
+                signature = await signAndSend([instruction], wallet, { skipPreflight: true });
+            } catch (caught) {
+                if (!(caught instanceof OnChainTransactionError)) throw caught;
+                signature = caught.signature;
+                ok = false;
             }
+            const tx = await rpc
+                .getTransaction(signature as Signature, {
+                    commitment: 'confirmed',
+                    encoding: 'json',
+                    maxSupportedTransactionVersion: 0,
+                })
+                .send();
+            setResult({
+                approvals,
+                computeUnits: tx?.meta?.computeUnitsConsumed ?? null,
+                ok,
+                signature,
+            });
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Verification failed');
+            setError(formatTransactionError(caught));
         } finally {
             setPhase('ready');
         }
@@ -179,7 +229,7 @@ export function MultisigDemo() {
                 <label className="block">
                     <span className="text-xs font-medium text-sand-1100">Message</span>
                     <input
-                        className="mt-1 w-64 rounded-lg border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        className="mt-1 block w-64 rounded-lg border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         disabled={busy}
                         onChange={e => setMessage(e.target.value)}
                         value={message}
@@ -277,11 +327,31 @@ export function MultisigDemo() {
                         </>
                     ) : (
                         <>
-                            <Badge variant="danger">Rejected</Badge>
+                            <Badge variant="danger">Rejected on-chain</Badge>
                             <span className="text-sand-1100">
                                 only {result.approvals} of {members.length} signed — the aggregate doesn't match the
                                 registered set
                             </span>
+                            {result.computeUnits != null && (
+                                <span className="text-sand-1100">
+                                    pairing still ran ·{' '}
+                                    <span className="font-medium text-foreground">
+                                        {result.computeUnits.toLocaleString()}
+                                    </span>{' '}
+                                    CU
+                                </span>
+                            )}
+                            {result.signature && (
+                                <Button asChild size="sm" variant="secondary">
+                                    <a
+                                        href={getSolanaExplorerUrl(result.signature, cluster)}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        View on Explorer
+                                    </a>
+                                </Button>
+                            )}
                         </>
                     )}
                 </div>

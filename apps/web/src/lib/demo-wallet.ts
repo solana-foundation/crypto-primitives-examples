@@ -36,11 +36,23 @@ interface AirdropRpc {
     requestAirdrop(address: KeyPairSigner['address'], lamports: bigint): { send(): Promise<string> };
 }
 
-/** Tops the demo wallet up from the faucet only if it is running low. */
-export async function ensureFunded(rpc: AirdropRpc, signer: KeyPairSigner, minSol = 5): Promise<void> {
+/**
+ * Ensures the demo wallet can pay for the demo. With `faucet` (localnet) it
+ * tops the wallet up from the local faucet; otherwise it never airdrops and
+ * instead asks the user to fund the wallet address themselves.
+ */
+export async function ensureFunded(rpc: AirdropRpc, signer: KeyPairSigner, faucet: boolean): Promise<void> {
     const balance = (await rpc.getBalance(signer.address).send()).value;
-    if (balance >= BigInt(minSol) * 1_000_000_000n) return;
 
+    if (!faucet) {
+        if (balance >= 50_000_000n) return;
+        throw new Error(
+            `Demo wallet ${signer.address} is low on SOL (a full run costs up to ~0.05 SOL). ` +
+                'Send it ~1 SOL on this cluster and retry.',
+        );
+    }
+
+    if (balance >= 5_000_000_000n) return;
     await rpc.requestAirdrop(signer.address, 100n * 1_000_000_000n).send();
     for (let i = 0; i < 30; i++) {
         await new Promise(resolve => setTimeout(resolve, 500));

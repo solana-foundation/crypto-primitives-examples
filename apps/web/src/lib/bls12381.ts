@@ -1,8 +1,8 @@
 import { bls12_381 } from '@noble/curves/bls12-381.js';
 
 // Short signatures: signatures in G1, public keys in G2 (what we aggregate on-chain).
-const bls = (bls12_381 as any).shortSignatures;
-const G2Point = (bls12_381 as any).G2.Point;
+const bls = bls12_381.shortSignatures;
+const G2Point = bls12_381.G2.Point;
 
 export const REGISTRY_ADD_DISCRIMINATOR = 12;
 export const REGISTRY_REMOVE_DISCRIMINATOR = 13;
@@ -12,7 +12,6 @@ export const REGISTRY_ACCOUNT_SIZE = 2 + G2_POINT_BYTES;
 export interface Member {
     /** Uncompressed G2 public key (192 bytes), hex — what's stored/added on-chain. */
     pubkey: string;
-    publicKey: unknown;
     secretKey: Uint8Array;
 }
 
@@ -27,7 +26,16 @@ function toBytes(h: string): Uint8Array {
 
 export function generateMember(): Member {
     const { publicKey, secretKey } = bls.keygen();
-    return { publicKey, pubkey: hex(publicKey.toBytes(false)), secretKey };
+    return { pubkey: hex(publicKey.toBytes(false)), secretKey };
+}
+
+export function memberSecret(member: Member): string {
+    return hex(member.secretKey);
+}
+
+export function restoreMember(secret: string): Member {
+    const secretKey = toBytes(secret);
+    return { pubkey: hex(bls.getPublicKey(secretKey).toBytes(false)), secretKey };
 }
 
 /** Instruction data to add/remove a member's key: discriminator + uncompressed G2. */
