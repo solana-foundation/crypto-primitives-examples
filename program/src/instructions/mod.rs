@@ -10,9 +10,9 @@ pub use altbn128_g2::*;
 pub use bls12_381::*;
 pub use bls254_aggregate::*;
 pub use bls_registry::*;
-pub use multisig::*;
 #[cfg(feature = "idl")]
 pub use definition::*;
+pub use multisig::*;
 pub use noop::*;
 
 use pinocchio::error::ProgramError;

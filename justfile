@@ -18,9 +18,12 @@ generate-clients: generate-idl
     @echo "Generating clients..."
     pnpm run generate-clients
 
-# Build the program
-build: generate-idl generate-clients
+# Build the program binary only (no IDL/client regeneration)
+build-sbf:
     cd program && cargo-build-sbf
+
+# Build the program
+build: generate-idl generate-clients build-sbf
 
 # Boot a local validator, auto-fund the local wallet, and deploy the program
 localnet:
@@ -47,3 +50,25 @@ check:
     cd program && cargo check --features idl
     pnpm run format:check
     pnpm lint
+
+# CI: formatting only, no writes
+fmt-check:
+    cargo fmt -p crypto-primitives --check
+    pnpm run format:check
+
+# CI: lints only, no writes
+lint-check:
+    cd program && cargo clippy --all-targets -- -D warnings
+    pnpm lint
+
+# Program unit tests
+unit-test:
+    cd program && cargo test
+
+# Mollusk integration tests (needs the SBF build)
+integration-test: build-sbf
+    cd tests && cargo test
+
+# CI: committed IDL + clients match the program source
+check-generated: generate-clients
+    git diff --exit-code idl clients

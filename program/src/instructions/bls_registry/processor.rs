@@ -48,7 +48,13 @@ pub fn process_bls_registry_add(
         let mut current = [0u8; G2_POINT];
         current.copy_from_slice(&data[COUNT_PREFIX..COUNT_PREFIX + G2_POINT]);
         let mut updated = [0u8; G2_POINT];
-        curve_group_op(BLS12_381_G2, GROUP_OP_ADD, &current, instruction_data, &mut updated)?;
+        curve_group_op(
+            BLS12_381_G2,
+            GROUP_OP_ADD,
+            &current,
+            instruction_data,
+            &mut updated,
+        )?;
         data[COUNT_PREFIX..COUNT_PREFIX + G2_POINT].copy_from_slice(&updated);
     }
     data[..COUNT_PREFIX].copy_from_slice(&(count + 1).to_le_bytes());
@@ -79,7 +85,13 @@ pub fn process_bls_registry_remove(
         let mut current = [0u8; G2_POINT];
         current.copy_from_slice(&data[COUNT_PREFIX..COUNT_PREFIX + G2_POINT]);
         let mut updated = [0u8; G2_POINT];
-        curve_group_op(BLS12_381_G2, GROUP_OP_SUB, &current, instruction_data, &mut updated)?;
+        curve_group_op(
+            BLS12_381_G2,
+            GROUP_OP_SUB,
+            &current,
+            instruction_data,
+            &mut updated,
+        )?;
         data[COUNT_PREFIX..COUNT_PREFIX + G2_POINT].copy_from_slice(&updated);
     }
     data[..COUNT_PREFIX].copy_from_slice(&(count - 1).to_le_bytes());

@@ -51,7 +51,8 @@ pub fn aggregate_verify(
     let mut input = [0u8; PAIRING_INPUT];
     input[..G1_POINT].copy_from_slice(aggregate_signature);
     input[G1_POINT..G1_POINT + G2_POINT].copy_from_slice(&G2_GENERATOR);
-    input[G1_POINT + G2_POINT..G1_POINT + G2_POINT + G1_POINT].copy_from_slice(negated_message_hash);
+    input[G1_POINT + G2_POINT..G1_POINT + G2_POINT + G1_POINT]
+        .copy_from_slice(negated_message_hash);
     input[G1_POINT + G2_POINT + G1_POINT..].copy_from_slice(aggregate_pubkey);
 
     let mut result = [0u8; 32];
