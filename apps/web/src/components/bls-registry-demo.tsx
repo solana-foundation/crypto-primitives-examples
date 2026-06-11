@@ -14,6 +14,7 @@ import {
     verifyAgainstOnChainKey,
 } from '@/lib/bls12381';
 import { ensureFunded, getDemoWallet } from '@/lib/demo-wallet';
+import { base64ToBytes, bytesToHex } from '@/lib/hex';
 import { getProgramAddress } from '@/lib/program';
 import { ellipsify } from '@/lib/utils';
 import { useRpc } from '@/hooks/useRpc';
@@ -129,14 +130,14 @@ export function BlsRegistryDemo() {
         setResult(null);
         try {
             const info = await rpc.getAccountInfo(registry, { encoding: 'base64' }).send();
-            const raw = Buffer.from(info.value!.data[0], 'base64');
-            const memberCount = raw.readUInt16LE(0);
-            const aggregateKey = raw.subarray(2, 2 + 192);
+            const raw = base64ToBytes(info.value!.data[0]);
+            const memberCount = raw[0] | (raw[1] << 8);
+            const aggregateKey = raw.slice(2, 2 + 192);
 
             const signers = rows.filter(r => r.sign).map(r => members.current.get(r.id)!);
-            const ok = memberCount > 0 && verifyAgainstOnChainKey(signers, message, new Uint8Array(aggregateKey));
+            const ok = memberCount > 0 && verifyAgainstOnChainKey(signers, message, aggregateKey);
             setResult({
-                aggregateKey: aggregateKey.toString('hex'),
+                aggregateKey: bytesToHex(aggregateKey),
                 memberCount,
                 ok,
                 signerCount: signers.length,

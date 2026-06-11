@@ -17,7 +17,9 @@ export interface Member {
 }
 
 function hex(bytes: Uint8Array): string {
-    return Buffer.from(bytes).toString('hex');
+    let out = '';
+    for (const byte of bytes) out += byte.toString(16).padStart(2, '0');
+    return out;
 }
 function toBytes(h: string): Uint8Array {
     return Uint8Array.from(h.match(/../g)!.map(b => parseInt(b, 16)));
