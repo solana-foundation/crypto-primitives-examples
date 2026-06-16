@@ -1,4 +1,4 @@
-import { createKeyPairSignerFromBytes, type KeyPairSigner } from '@solana/kit';
+import { createKeyPairSignerFromBytes, createKeyPairSignerFromPrivateKeyBytes, type KeyPairSigner } from '@solana/kit';
 
 const SEED_KEY = 'crypto-primitives-demo-wallet-seed';
 
@@ -7,11 +7,11 @@ const viteEnv = import.meta.env as unknown as { readonly VITE_LOCAL_WALLET_SECRE
 function randomSeedSigner(): Promise<KeyPairSigner> {
     const stored = localStorage.getItem(SEED_KEY);
     let seed = stored ? Uint8Array.from(atob(stored), c => c.charCodeAt(0)) : new Uint8Array();
-    if (seed.length !== 64) {
-        seed = crypto.getRandomValues(new Uint8Array(64));
+    if (seed.length !== 32) {
+        seed = crypto.getRandomValues(new Uint8Array(32));
         localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
     }
-    return createKeyPairSignerFromBytes(seed);
+    return createKeyPairSignerFromPrivateKeyBytes(seed);
 }
 
 let cached: Promise<KeyPairSigner> | null = null;
