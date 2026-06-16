@@ -1,5 +1,7 @@
 import { ErrorBoundary } from 'react-error-boundary';
 
+import { TooltipProvider } from '@/components/ui/tooltip';
+
 import { ReactQueryProvider } from './react-query-provider';
 import { SolanaProvider } from './solana/solana-provider';
 
@@ -42,7 +44,9 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
     return (
         <ReactQueryProvider>
             <ErrorBoundary FallbackComponent={WalletErrorFallback}>
-                <SolanaProvider>{children}</SolanaProvider>
+                <SolanaProvider>
+                    <TooltipProvider>{children}</TooltipProvider>
+                </SolanaProvider>
             </ErrorBoundary>
         </ReactQueryProvider>
     );

@@ -1,14 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import { Badge, Button } from '@solana/design-system';
-import { AccountRole, type Address, generateKeyPairSigner, type Instruction, type Signature } from '@solana/kit';
+import {
+    AccountRole,
+    type Address,
+    generateKeyPairSigner,
+    type Instruction,
+    type KeyPairSigner,
+    type Signature,
+} from '@solana/kit';
 
+import { useDemoWalletFunding } from '@/components/demo-funding';
+import { MultisigFlow } from '@/components/multisig-flow';
 import {
     OnChainTransactionError,
     useWalletTransactionSignAndSend,
 } from '@/components/solana/use-wallet-transaction-sign-and-send';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
-import { useDemoFeePayer } from '@/hooks/use-demo-fee-payer';
 import { useRpc } from '@/hooks/useRpc';
 import {
     addSignersInstructionData,
@@ -24,7 +32,7 @@ import {
     verifyInstructionData,
 } from '@/lib/bn254-bls';
 import { clearDemoState, loadDemoState, saveDemoState } from '@/lib/demo-storage';
-import { ensureFunded } from '@/lib/demo-wallet';
+import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/demo-wallet';
 import { getClusterFromClusterId, getSolanaExplorerUrl } from '@/lib/explorer';
 import { base64ToBytes } from '@/lib/hex';
 import { getProgramAddress } from '@/lib/program';
@@ -53,8 +61,9 @@ export function MultisigDemo() {
     const rpc = useRpc();
     const signAndSend = useWalletTransactionSignAndSend();
     const { id: clusterId } = useClusterConfig();
-    const { isLocalnet, ready, signer } = useDemoFeePayer();
+    const { dialog: fundingDialog, requestFunding } = useDemoWalletFunding();
 
+    const [wallet, setWallet] = useState<KeyPairSigner | null>(null);
     const [memberCount, setMemberCount] = useState(50);
     const [createdCount, setCreatedCount] = useState<number | null>(null);
     const [signers, setSigners] = useState<Set<number>>(new Set());
@@ -67,6 +76,12 @@ export function MultisigDemo() {
 
     const memberSet = useRef<MemberSet | null>(null);
     const storageKey = `crypto-primitives-multisig-demo:${clusterId}`;
+
+    useEffect(() => {
+        getDemoWallet()
+            .then(setWallet)
+            .catch(() => undefined);
+    }, []);
 
     useEffect(() => {
         const stored = loadDemoState<StoredMultisig>(storageKey);
@@ -103,13 +118,13 @@ export function MultisigDemo() {
     }, [multisig, storageKey]);
 
     async function setup() {
-        if (!signer) return;
+        if (!wallet) return;
         setPhase('creating');
         setError(null);
         setResult(null);
         setMultisig(null);
         try {
-            if (isLocalnet) await ensureFunded(rpc, signer, true);
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
 
             const set = await generateMembers(memberCount);
             memberSet.current = set;
@@ -124,12 +139,12 @@ export function MultisigDemo() {
                     getCreateAccountInstruction({
                         lamports,
                         newAccount: account,
-                        payer: signer,
+                        payer: wallet,
                         programAddress: getProgramAddress(),
                         space,
                     }),
                 ],
-                signer,
+                wallet,
             );
 
             const total = Math.ceil(memberCount / MAX_KEYS_PER_TX);
@@ -141,7 +156,7 @@ export function MultisigDemo() {
                     data: addSignersInstructionData(chunk),
                     programAddress: getProgramAddress(),
                 };
-                await signAndSend([instruction], signer);
+                await signAndSend([instruction], wallet);
                 setProgress({ done: Math.floor(i / MAX_KEYS_PER_TX) + 1, total });
             }
 
@@ -149,6 +164,11 @@ export function MultisigDemo() {
             setCreatedCount(memberCount);
             setPhase('ready');
         } catch (caught) {
+            if (caught instanceof InsufficientDemoFundsError) {
+                requestFunding({ address: caught.address, onFunded: () => void setup() });
+                setPhase('idle');
+                return;
+            }
             setError(caught instanceof Error ? caught.message : 'Setup failed');
             setPhase('idle');
         }
@@ -164,7 +184,7 @@ export function MultisigDemo() {
     }
 
     async function verify() {
-        if (!signer || !multisig || !memberSet.current) return;
+        if (!wallet || !multisig || !memberSet.current) return;
         setPhase('verifying');
         setError(null);
         setResult(null);
@@ -179,7 +199,7 @@ export function MultisigDemo() {
             let signature: string;
             let ok = true;
             try {
-                signature = await signAndSend([instruction], signer, { skipPreflight: true });
+                signature = await signAndSend([instruction], wallet, { skipPreflight: true });
             } catch (caught) {
                 if (!(caught instanceof OnChainTransactionError)) throw caught;
                 signature = caught.signature;
@@ -211,188 +231,204 @@ export function MultisigDemo() {
 
     const cluster = getClusterFromClusterId(clusterId);
     const busy = phase === 'creating' || phase === 'verifying';
+    const registeredCount =
+        phase === 'creating' ? Math.min(progress.done * MAX_KEYS_PER_TX, members.length) : members.length;
 
     return (
-        <div className="space-y-5 rounded-xl border bg-card p-5">
-            <div>
-                <h3 className="text-base font-semibold text-foreground">On-chain multisig: everyone must sign</h3>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                    <li>Pick a member count, then register the members' public keys on-chain.</li>
-                    <li>Click members to toggle who signs, and submit one aggregate signature to verify.</li>
-                    <li>
-                        The program sums every stored key with G2 addition and runs one pairing check — it only passes
-                        if <em>every</em> member signed. Drop one and the math breaks.
-                    </li>
-                </ol>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-4">
-                <label className="block">
-                    <span className="text-xs font-medium text-sand-1100">Members: {memberCount}</span>
-                    <span className="mt-1 flex h-9 w-56 items-center">
-                        <input
-                            className="w-full"
-                            disabled={busy}
-                            max={200}
-                            min={2}
-                            onChange={e => setMemberCount(Number(e.target.value))}
-                            step={1}
-                            type="range"
-                            value={memberCount}
-                        />
-                    </span>
-                </label>
-                <Button
-                    disabled={!ready || memberCount === createdCount}
-                    loading={phase === 'creating'}
-                    onClick={() => void setup()}
-                >
-                    {!isLocalnet && !ready ? 'Connect wallet to create' : 'Create multisig & register members'}
-                </Button>
-            </div>
-
-            {phase === 'creating' && progress.total > 0 && (
-                <div className="text-sm text-sand-1100">
-                    Storing members on-chain… {progress.done}/{progress.total} batches
-                </div>
-            )}
-
-            {members.length > 0 && (
+        <div className="space-y-5">
+            <MultisigFlow
+                hasMultisig={multisig !== null}
+                memberCount={members.length || memberCount}
+                phase={phase}
+                result={result}
+                signerCount={signers.size}
+            />
+            <div className="space-y-5 rounded-xl border bg-card p-5">
                 <div>
-                    <div className="mb-2 text-xs font-medium text-sand-1100">
-                        {members.length} members{multisig ? ` · ${ellipsify(multisig, 4)}` : ''} · click a member to
-                        toggle whether they sign
-                    </div>
-                    <div className="grid max-h-48 grid-cols-5 gap-1 overflow-y-auto rounded-lg border bg-background p-2">
-                        {members.map((pubkey, i) => {
-                            const signing = signers.has(i);
-                            return (
-                                <button
-                                    className={
-                                        'rounded px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-colors disabled:cursor-default ' +
-                                        (signing
-                                            ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
-                                            : 'bg-sand-200 text-sand-1000')
-                                    }
-                                    disabled={phase !== 'ready'}
-                                    key={i}
-                                    onClick={() => toggleSigner(i)}
-                                    title={pubkey}
-                                    type="button"
-                                >
-                                    {signing ? '✓ ' : ''}#{i + 1} {ellipsify(pubkey, 4)}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <h3 className="text-base font-semibold text-foreground">On-chain multisig: everyone must sign</h3>
+                    <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>Pick a member count, then register the members' public keys on-chain.</li>
+                        <li>Click members to toggle who signs, and submit one aggregate signature to verify.</li>
+                        <li>
+                            The program sums every stored key with G2 addition and runs one pairing check — it only
+                            passes if <em>every</em> member signed. Drop one and the math breaks.
+                        </li>
+                    </ol>
                 </div>
-            )}
 
-            {multisig && (phase === 'ready' || phase === 'verifying') && (
-                <div className="flex flex-wrap items-center gap-4 border-t pt-4">
-                    <span className="text-sm text-sand-1100">
-                        <span className="font-medium text-foreground">{signers.size}</span> of {members.length} will
-                        sign
-                    </span>
-                    <Button disabled={signers.size === 0} loading={phase === 'verifying'} onClick={() => void verify()}>
-                        Verify on-chain
+                <div className="flex flex-wrap items-end gap-4">
+                    <label className="block">
+                        <span className="text-xs font-medium text-sand-1100">Members: {memberCount}</span>
+                        <span className="mt-1 flex h-9 w-56 items-center">
+                            <input
+                                className="w-full"
+                                disabled={busy}
+                                max={200}
+                                min={2}
+                                onChange={e => setMemberCount(Number(e.target.value))}
+                                step={1}
+                                type="range"
+                                value={memberCount}
+                            />
+                        </span>
+                    </label>
+                    <Button
+                        disabled={!wallet || memberCount === createdCount}
+                        loading={phase === 'creating'}
+                        onClick={() => void setup()}
+                    >
+                        Create multisig &amp; register members
                     </Button>
                 </div>
-            )}
 
-            {error && (
-                <div className="flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
-                    <Badge variant="danger">Error</Badge>
-                    <span className="break-words whitespace-pre-wrap">{error}</span>
-                </div>
-            )}
+                {members.length > 0 && (
+                    <div>
+                        <div className="mb-2 text-xs font-medium text-sand-1100">
+                            {phase === 'creating'
+                                ? progress.total > 0
+                                    ? `Registering keys on-chain… ${progress.done}/${progress.total} batches`
+                                    : 'Creating the multisig account on-chain…'
+                                : `${members.length} members${multisig ? ` · ${ellipsify(multisig, 4)}` : ''} · click a member to toggle whether they sign`}
+                        </div>
+                        <div className="grid max-h-48 grid-cols-5 gap-1 overflow-y-auto rounded-lg border bg-background p-2">
+                            {members.map((pubkey, i) => {
+                                const signing = signers.has(i);
+                                const registered = i < registeredCount;
+                                return (
+                                    <button
+                                        className={
+                                            'rounded px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-all disabled:cursor-default ' +
+                                            (signing
+                                                ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
+                                                : 'bg-sand-200 text-sand-1000') +
+                                            (registered ? '' : ' opacity-40')
+                                        }
+                                        disabled={phase !== 'ready'}
+                                        key={i}
+                                        onClick={() => toggleSigner(i)}
+                                        title={pubkey}
+                                        type="button"
+                                    >
+                                        {signing ? '✓ ' : ''}#{i + 1} {ellipsify(pubkey, 4)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
-            {result && (
-                <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                    <div className="flex flex-wrap items-center gap-3">
-                        {result.ok ? (
-                            <>
-                                <Badge variant="success">All {members.length} approved</Badge>
-                                {result.computeUnits != null && (
+                {multisig && (phase === 'ready' || phase === 'verifying') && (
+                    <div className="flex flex-wrap items-center gap-4 border-t pt-4">
+                        <span className="text-sm text-sand-1100">
+                            <span className="font-medium text-foreground">{signers.size}</span> of {members.length} will
+                            sign
+                        </span>
+                        <Button
+                            disabled={signers.size === 0}
+                            loading={phase === 'verifying'}
+                            onClick={() => void verify()}
+                        >
+                            Verify on-chain
+                        </Button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                        <Badge variant="danger">Error</Badge>
+                        <span className="break-words whitespace-pre-wrap">{error}</span>
+                    </div>
+                )}
+
+                {result && (
+                    <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-3">
+                            {result.ok ? (
+                                <>
+                                    <Badge variant="success">All {members.length} approved</Badge>
+                                    {result.computeUnits != null && (
+                                        <span className="text-sand-1100">
+                                            one pairing check ·{' '}
+                                            <span className="font-medium text-foreground">
+                                                {result.computeUnits.toLocaleString()}
+                                            </span>{' '}
+                                            CU
+                                        </span>
+                                    )}
+                                    {result.signature && (
+                                        <Button asChild size="sm" variant="secondary">
+                                            <a
+                                                href={getSolanaExplorerUrl(result.signature, cluster)}
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                View on Explorer
+                                            </a>
+                                        </Button>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <Badge variant="danger">Rejected on-chain</Badge>
                                     <span className="text-sand-1100">
-                                        one pairing check ·{' '}
-                                        <span className="font-medium text-foreground">
-                                            {result.computeUnits.toLocaleString()}
-                                        </span>{' '}
-                                        CU
+                                        only {result.signerCount} of {members.length} signed — the aggregate doesn't
+                                        match the registered set
                                     </span>
-                                )}
-                                {result.signature && (
-                                    <Button asChild size="sm" variant="secondary">
-                                        <a
-                                            href={getSolanaExplorerUrl(result.signature, cluster)}
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        >
-                                            View on Explorer
-                                        </a>
-                                    </Button>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                <Badge variant="danger">Rejected on-chain</Badge>
-                                <span className="text-sand-1100">
-                                    only {result.signerCount} of {members.length} signed — the aggregate doesn't match
-                                    the registered set
+                                    {result.computeUnits != null && (
+                                        <span className="text-sand-1100">
+                                            pairing still ran ·{' '}
+                                            <span className="font-medium text-foreground">
+                                                {result.computeUnits.toLocaleString()}
+                                            </span>{' '}
+                                            CU
+                                        </span>
+                                    )}
+                                    {result.signature && (
+                                        <Button asChild size="sm" variant="secondary">
+                                            <a
+                                                href={getSolanaExplorerUrl(result.signature, cluster)}
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                View on Explorer
+                                            </a>
+                                        </Button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        {result.storedAggregateKey && (
+                            <div>
+                                <span className="text-xs font-medium text-sand-1100">
+                                    aggregate key the program folds from the {members.length} stored keys
                                 </span>
-                                {result.computeUnits != null && (
-                                    <span className="text-sand-1100">
-                                        pairing still ran ·{' '}
-                                        <span className="font-medium text-foreground">
-                                            {result.computeUnits.toLocaleString()}
-                                        </span>{' '}
-                                        CU
-                                    </span>
-                                )}
-                                {result.signature && (
-                                    <Button asChild size="sm" variant="secondary">
-                                        <a
-                                            href={getSolanaExplorerUrl(result.signature, cluster)}
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        >
-                                            View on Explorer
-                                        </a>
-                                    </Button>
-                                )}
-                            </>
+                                <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
+                                    {result.storedAggregateKey}
+                                </p>
+                            </div>
+                        )}
+                        {result.signerAggregateKey && (
+                            <div>
+                                <span className="text-xs font-medium text-sand-1100">
+                                    aggregate key represented by your {result.signerCount} signers
+                                </span>
+                                <p
+                                    className={
+                                        'mt-1 font-berkeley-mono text-xs break-all ' +
+                                        (result.signerAggregateKey === result.storedAggregateKey
+                                            ? 'text-foreground'
+                                            : 'text-destructive')
+                                    }
+                                >
+                                    {result.signerAggregateKey}
+                                </p>
+                            </div>
                         )}
                     </div>
-                    {result.storedAggregateKey && (
-                        <div>
-                            <span className="text-xs font-medium text-sand-1100">
-                                aggregate key the program folds from the {members.length} stored keys
-                            </span>
-                            <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
-                                {result.storedAggregateKey}
-                            </p>
-                        </div>
-                    )}
-                    {result.signerAggregateKey && (
-                        <div>
-                            <span className="text-xs font-medium text-sand-1100">
-                                aggregate key represented by your {result.signerCount} signers
-                            </span>
-                            <p
-                                className={
-                                    'mt-1 font-berkeley-mono text-xs break-all ' +
-                                    (result.signerAggregateKey === result.storedAggregateKey
-                                        ? 'text-foreground'
-                                        : 'text-destructive')
-                                }
-                            >
-                                {result.signerAggregateKey}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            )}
+                )}
+
+                {fundingDialog}
+            </div>
         </div>
     );
 }

@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
+
+import { SyscallTerm } from '@/components/glossary-term';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PrimitiveRow {
     encoding: string;
@@ -51,9 +54,9 @@ const ROWS: PrimitiveRow[] = [
     {
         encoding: 'BE / LE',
         featureKey: 'bn1hKNURMGQaQoEVxahcEAcqiX3NwRs6hgKKNSLeKxH',
-        kind: 'syscall (sol_alt_bn128_group_op)',
-        name: 'alt_bn128 G2',
-        ops: 'add, scalar-mul',
+        kind: 'Syscall',
+        name: 'BN254 pairing curve',
+        ops: 'Point add, scalar multiply',
         security: '~100-bit',
         simd: 'SIMD-0302',
         simdUrl: `${SIMD_BASE}0302-bn254-g2-syscalls.md`,
@@ -63,9 +66,9 @@ const ROWS: PrimitiveRow[] = [
     {
         encoding: 'Zcash BE',
         featureKey: 'b1sgUiJ3qu7hYm3tNDyyqZNQd6gLGJmJppnLNa93PCQ',
-        kind: 'syscall (sol_curve_group_op)',
-        name: 'BLS12-381',
-        ops: 'G1/G2 add, sub, scalar-mul',
+        kind: 'Syscall',
+        name: 'BLS12-381 signature curve',
+        ops: 'Add, subtract, scalar multiply (G1 & G2)',
         security: '128-bit',
         simd: 'SIMD-0388',
         simdUrl: `${SIMD_BASE}0388-bls12-381-syscalls.md`,
@@ -75,9 +78,9 @@ const ROWS: PrimitiveRow[] = [
     {
         encoding: 'twisted ElGamal',
         featureKey: 'zkhiy5oLowR7HY4zogXjCjeMXyruLqBwSWH21qcFtnv',
-        kind: 'native program (ZkE1Gama1Proof111…)',
-        name: 'ZK ElGamal',
-        ops: 'verify ZK proofs',
+        kind: 'Native program',
+        name: 'Zero Knowledge ElGamal proofs',
+        ops: 'Verify ZK proofs',
         security: 'n/a',
         simd: 'SIMD-0153',
         simdUrl: `${SIMD_BASE}0153-elgamal-proof-program.md`,
@@ -95,8 +98,22 @@ export function Overview() {
                     Cryptographic primitives in Agave
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                    Cryptographic capabilities that ship with the Solana validator — what each does, how they differ,
-                    and what they make possible.
+                    Recent additions to the Solana validator's cryptography — curve, pairing, and zero-knowledge
+                    primitives. What each does, how they differ, what they unlock.
+                </p>
+            </section>
+
+            <section className="max-w-3xl space-y-3 rounded-xl border bg-card p-5">
+                <h2 className="text-sm font-semibold text-foreground">New to this?</h2>
+                <p className="text-sm text-muted-foreground">
+                    These are just hard math problems the Solana validator solves for you — the kind a program could
+                    never afford to work out itself on-chain. Things like proving a big group signed off on something
+                    with one signature (<em>pairing</em>, on an elliptic <em>curve</em>), or proving a number is valid
+                    without showing it (<em>zero-knowledge</em>).
+                </p>
+                <p className="text-sm text-muted-foreground">
+                    A program calls them like built-in functions (<em>syscalls</em>) and gets a fast, cheap answer. Here
+                    are the three newest.
                 </p>
             </section>
 
@@ -108,7 +125,26 @@ export function Overview() {
                             <th className="px-4 py-3 font-medium">SIMD</th>
                             <th className="px-4 py-3 font-medium">Kind</th>
                             <th className="px-4 py-3 font-medium">Operations</th>
-                            <th className="px-4 py-3 font-medium">Security</th>
+                            <th className="px-4 py-3 font-medium">
+                                <span className="inline-flex items-center gap-1">
+                                    Security
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                aria-label="What does n-bit security mean?"
+                                                className="text-sand-900 transition-colors hover:text-foreground"
+                                                type="button"
+                                            >
+                                                <Info className="size-3.5" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            n-bit security means the best known attack needs about 2<sup>n</sup>{' '}
+                                            operations — anything near 100 bits is far beyond reach.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </span>
+                            </th>
                             <th className="px-4 py-3 font-medium">Status</th>
                             <th className="px-4 py-3" />
                         </tr>
@@ -127,7 +163,9 @@ export function Overview() {
                                         {row.simd}
                                     </a>
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">{row.kind}</td>
+                                <td className="px-4 py-3 text-muted-foreground">
+                                    {row.kind === 'Syscall' ? <SyscallTerm>{row.kind}</SyscallTerm> : row.kind}
+                                </td>
                                 <td className="px-4 py-3 text-muted-foreground">{row.ops}</td>
                                 <td className="px-4 py-3 text-muted-foreground">{row.security}</td>
                                 <td className="px-4 py-3 text-muted-foreground">
@@ -149,18 +187,6 @@ export function Overview() {
                         ))}
                     </tbody>
                 </table>
-            </section>
-
-            <section className="max-w-3xl space-y-2 rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-                <h2 className="text-sm font-semibold text-foreground">What the security column means</h2>
-                <p>
-                    n-bit security means the best known attack needs about 2<sup>n</sup> operations — anything near 100
-                    bits is far beyond reach.
-                </p>
-                <p className="italic">
-                    BN254 aimed for 128 bits, but newer attacks lowered the estimate to ~100; still considered safe in
-                    practice. BLS12-381 is a bigger curve designed after those attacks, so it keeps the full 128.
-                </p>
             </section>
         </div>
     );
