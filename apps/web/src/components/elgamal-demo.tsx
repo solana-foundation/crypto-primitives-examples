@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { useKitTransactionSigner, useWallet } from '@solana/connector/react';
+import { useEffect, useState } from 'react';
 import { Badge, Button } from '@solana/design-system';
 import {
     verifyBatchedRangeProofU64,
     verifyCiphertextCommitmentEquality,
     verifyZeroCiphertext,
 } from '@solana-program/zk-elgamal-proof';
-import type { Instruction, Signature } from '@solana/kit';
+import type { Instruction, KeyPairSigner, Signature } from '@solana/kit';
 import {
     BatchedRangeProofU64Data,
     CiphertextCommitmentEqualityProofData,
@@ -17,12 +16,15 @@ import {
     ZeroCiphertextProofData,
 } from '@solana/zk-sdk/bundler';
 
+import { useDemoWalletFunding } from '@/components/demo-funding';
 import {
     OnChainTransactionError,
     useWalletTransactionSignAndSend,
 } from '@/components/solana/use-wallet-transaction-sign-and-send';
+import { ZkProofFlow } from '@/components/zk-proof-flow';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
+import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/demo-wallet';
 import { COMPARISON_SYMBOL, type ComparisonOp, shiftCiphertextForClaim, U64_MAX } from '@/lib/elgamal';
 import { getClusterFromClusterId, getSolanaExplorerUrl } from '@/lib/explorer';
 import { bytesToHex } from '@/lib/hex';
@@ -121,10 +123,10 @@ function ProofExplainer({ generated }: { generated: Generated }) {
 export function ElGamalDemo() {
     const rpc = useRpc();
     const signAndSend = useWalletTransactionSignAndSend();
-    const { signer } = useKitTransactionSigner();
-    const { isConnected } = useWallet();
     const { id: clusterId } = useClusterConfig();
+    const { dialog: fundingDialog, requestFunding } = useDemoWalletFunding();
 
+    const [wallet, setWallet] = useState<KeyPairSigner | null>(null);
     const [amount, setAmount] = useState('0');
     const [claim, setClaim] = useState('0');
     const [op, setOp] = useState<ComparisonOp>('eq');
@@ -132,6 +134,12 @@ export function ElGamalDemo() {
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<RunResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        getDemoWallet()
+            .then(setWallet)
+            .catch(() => undefined);
+    }, []);
 
     function resetOutputs() {
         setGenerated(null);
@@ -223,26 +231,27 @@ export function ElGamalDemo() {
     }
 
     async function buildInstructions(proof: PreparedProof): Promise<Instruction[]> {
-        if (!signer) throw new Error('Wallet not connected');
-        const args = { payer: signer, proofData: proof.bytes, rpc };
+        if (!wallet) throw new Error('Demo wallet not ready');
+        const args = { payer: wallet, proofData: proof.bytes, rpc };
         if (proof.kind === 'zero') return verifyZeroCiphertext(args);
         if (proof.kind === 'equality') return verifyCiphertextCommitmentEquality(args);
         return verifyBatchedRangeProofU64(args);
     }
 
     async function verifyOnChain() {
-        if (!signer || !generated) return;
+        if (!wallet || !generated) return;
         setRunning(true);
         setResult(null);
         setError(null);
         try {
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
             const checks: ProofCheck[] = [];
             for (const proof of generated.proofs) {
                 const instructions = await buildInstructions(proof);
                 let signature: string;
                 let ok = true;
                 try {
-                    signature = await signAndSend(instructions, signer, { skipPreflight: true });
+                    signature = await signAndSend(instructions, wallet, { skipPreflight: true });
                 } catch (caught) {
                     if (!(caught instanceof OnChainTransactionError)) throw caught;
                     signature = caught.signature;
@@ -264,6 +273,10 @@ export function ElGamalDemo() {
             }
             setResult({ checks, ok: checks.every(check => check.ok) });
         } catch (caught) {
+            if (caught instanceof InsufficientDemoFundsError) {
+                requestFunding({ address: caught.address, onFunded: () => void verifyOnChain() });
+                return;
+            }
             setError(formatTransactionError(caught));
         } finally {
             setRunning(false);
@@ -274,144 +287,158 @@ export function ElGamalDemo() {
     const symbol = COMPARISON_SYMBOL[op];
 
     return (
-        <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-base font-semibold text-foreground">
-                Encrypted-amount proof: prove how a hidden number compares
-            </h3>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                <li>
-                    Pick a number and encrypt it in your browser (WebAssembly, <code>@solana/zk-sdk</code>) — the
-                    ciphertext is all the chain ever sees.
-                </li>
-                <li>
-                    Claim how it compares to a public number. <code>==</code> takes one zero-ciphertext proof;{' '}
-                    <code>&gt;</code> and <code>&lt;</code> take a Bulletproof range proof plus an equality proof that
-                    ties it to your ciphertext. A false claim can't be proven — the SDK refuses — so the demo forges the
-                    link and lets the chain catch it.
-                </li>
-                <li>
-                    The native program verifies each proof on-chain — a true claim passes, a false one is rejected, and
-                    the number itself never leaves your browser.
-                </li>
-            </ol>
+        <div className="space-y-5">
+            <ZkProofFlow
+                encryptLabel="your number, encrypted — the ciphertext is all the chain sees"
+                failLabel="✗ the claim is false — rejected"
+                passLabel="✓ the claim holds for the hidden number"
+                prepared={generated !== null}
+                result={result}
+                running={running}
+            />
+            <div className="rounded-xl border bg-card p-5">
+                <h3 className="text-base font-semibold text-foreground">
+                    Encrypted-amount proof: prove how a hidden number compares
+                </h3>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                    <li>
+                        Pick a number and encrypt it in your browser (WebAssembly, <code>@solana/zk-sdk</code>) — the
+                        ciphertext is all the chain ever sees.
+                    </li>
+                    <li>
+                        Claim how it compares to a public number. <code>==</code> takes one zero-ciphertext proof;{' '}
+                        <code>&gt;</code> and <code>&lt;</code> take a Bulletproof range proof plus an equality proof
+                        that ties it to your ciphertext. A false claim can't be proven — the SDK refuses — so the demo
+                        forges the link and lets the chain catch it.
+                    </li>
+                    <li>
+                        The native program verifies each proof on-chain — a true claim passes, a false one is rejected,
+                        and the number itself never leaves your browser.
+                    </li>
+                </ol>
 
-            <div className="mt-4 flex flex-wrap items-end gap-2">
-                <label className="block">
-                    <span className="text-xs font-medium text-sand-1100">Number to encrypt</span>
-                    <input
-                        className="mt-1 block h-9 w-40 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        inputMode="numeric"
-                        onChange={e => updateInput(setAmount, e.target.value)}
-                        value={amount}
-                    />
-                </label>
-                <button
-                    aria-label="Cycle comparison operator"
-                    className="h-9 w-12 rounded-lg border border-input bg-background font-berkeley-mono text-sm text-foreground transition-colors hover:bg-sand-100"
-                    onClick={cycleOp}
-                    type="button"
-                >
-                    {symbol}
-                </button>
-                <label className="block">
-                    <span className="text-xs font-medium text-sand-1100">Claimed number</span>
-                    <input
-                        className="mt-1 block h-9 w-40 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        inputMode="numeric"
-                        onChange={e => updateInput(setClaim, e.target.value)}
-                        value={claim}
-                    />
-                </label>
-                <Button onClick={generate} variant="secondary">
-                    Encrypt &amp; generate proof
-                </Button>
-                <Button
-                    disabled={running || !isConnected || !generated}
-                    loading={running}
-                    onClick={() => void verifyOnChain()}
-                >
-                    {isConnected ? 'Verify on-chain' : 'Connect wallet to verify'}
-                </Button>
-            </div>
-
-            {generated && (
-                <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                    <div>
-                        <span className="text-xs font-medium text-sand-1100">ciphertext (64 bytes)</span>
-                        <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
-                            {generated.ciphertext}
-                        </p>
-                    </div>
-                    <div className="text-sand-1100">
-                        proof claims this encrypts a value{' '}
-                        <span className="font-berkeley-mono font-medium text-foreground">
-                            {COMPARISON_SYMBOL[generated.op]} {generated.claimedAmount}
-                        </span>
-                        {!generated.honest && (
-                            <span className="text-destructive"> — but it doesn't; watch the chain catch it</span>
-                        )}
-                    </div>
+                <div className="mt-4 flex flex-wrap items-end gap-2">
+                    <label className="block">
+                        <span className="text-xs font-medium text-sand-1100">Number to encrypt</span>
+                        <input
+                            className="mt-1 block h-9 w-40 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            inputMode="numeric"
+                            onChange={e => updateInput(setAmount, e.target.value)}
+                            value={amount}
+                        />
+                    </label>
+                    <button
+                        aria-label="Cycle comparison operator"
+                        className="h-9 w-12 rounded-lg border border-input bg-background font-berkeley-mono text-sm text-foreground transition-colors hover:bg-sand-100"
+                        onClick={cycleOp}
+                        type="button"
+                    >
+                        {symbol}
+                    </button>
+                    <label className="block">
+                        <span className="text-xs font-medium text-sand-1100">Claimed number</span>
+                        <input
+                            className="mt-1 block h-9 w-40 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            inputMode="numeric"
+                            onChange={e => updateInput(setClaim, e.target.value)}
+                            value={claim}
+                        />
+                    </label>
+                    <Button onClick={generate} variant="secondary">
+                        Encrypt &amp; generate proof
+                    </Button>
+                    <Button
+                        disabled={running || !wallet || !generated}
+                        loading={running}
+                        onClick={() => void verifyOnChain()}
+                    >
+                        Verify on-chain
+                    </Button>
                 </div>
-            )}
 
-            {error && (
-                <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
-                    <Badge variant="danger">Failed</Badge>
-                    <span className="break-words whitespace-pre-wrap">{error}</span>
-                </div>
-            )}
-
-            {result && generated && (
-                <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                    <div className="flex flex-wrap items-center gap-3">
-                        {result.ok ? (
-                            <>
-                                <Badge variant="success">Verified on-chain</Badge>
-                                <span className="text-sand-1100">
-                                    the chain confirmed the encrypted value is{' '}
-                                    <span className="font-berkeley-mono">
-                                        {COMPARISON_SYMBOL[generated.op]} {generated.claimedAmount}
-                                    </span>{' '}
-                                    — without ever seeing it
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <Badge variant="danger">Rejected on-chain</Badge>
-                                <span className="text-sand-1100">the claim is false — here's how the chain saw it</span>
-                            </>
-                        )}
+                {generated && (
+                    <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+                        <div>
+                            <span className="text-xs font-medium text-sand-1100">ciphertext (64 bytes)</span>
+                            <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
+                                {generated.ciphertext}
+                            </p>
+                        </div>
+                        <div className="text-sand-1100">
+                            proof claims this encrypts a value{' '}
+                            <span className="font-berkeley-mono font-medium text-foreground">
+                                {COMPARISON_SYMBOL[generated.op]} {generated.claimedAmount}
+                            </span>
+                            {!generated.honest && (
+                                <span className="text-destructive"> — but it doesn't; watch the chain catch it</span>
+                            )}
+                        </div>
                     </div>
-                    <ProofExplainer generated={generated} />
-                    <div className="space-y-1">
-                        {result.checks.map(check => (
-                            <div className="flex flex-wrap items-center gap-2 text-xs" key={check.kind}>
-                                <Badge variant={check.ok ? 'success' : 'danger'}>
-                                    {check.ok ? 'passed' : 'rejected'}
-                                </Badge>
-                                <span className="text-sand-1100">{PROOF_LABEL[check.kind]}</span>
-                                {check.computeUnits != null && (
+                )}
+
+                {error && (
+                    <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                        <Badge variant="danger">Failed</Badge>
+                        <span className="break-words whitespace-pre-wrap">{error}</span>
+                    </div>
+                )}
+
+                {result && generated && (
+                    <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-3">
+                            {result.ok ? (
+                                <>
+                                    <Badge variant="success">Verified on-chain</Badge>
                                     <span className="text-sand-1100">
-                                        ·{' '}
-                                        <span className="font-medium text-foreground">
-                                            {check.computeUnits.toLocaleString()}
+                                        the chain confirmed the encrypted value is{' '}
+                                        <span className="font-berkeley-mono">
+                                            {COMPARISON_SYMBOL[generated.op]} {generated.claimedAmount}
                                         </span>{' '}
-                                        CU
+                                        — without ever seeing it
                                     </span>
-                                )}
-                                <a
-                                    className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                    href={getSolanaExplorerUrl(check.signature, cluster)}
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                >
-                                    view tx
-                                </a>
-                            </div>
-                        ))}
+                                </>
+                            ) : (
+                                <>
+                                    <Badge variant="danger">Rejected on-chain</Badge>
+                                    <span className="text-sand-1100">
+                                        the claim is false — here's how the chain saw it
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        <ProofExplainer generated={generated} />
+                        <div className="space-y-1">
+                            {result.checks.map(check => (
+                                <div className="flex flex-wrap items-center gap-2 text-xs" key={check.kind}>
+                                    <Badge variant={check.ok ? 'success' : 'danger'}>
+                                        {check.ok ? 'passed' : 'rejected'}
+                                    </Badge>
+                                    <span className="text-sand-1100">{PROOF_LABEL[check.kind]}</span>
+                                    {check.computeUnits != null && (
+                                        <span className="text-sand-1100">
+                                            ·{' '}
+                                            <span className="font-medium text-foreground">
+                                                {check.computeUnits.toLocaleString()}
+                                            </span>{' '}
+                                            CU
+                                        </span>
+                                    )}
+                                    <a
+                                        className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                                        href={getSolanaExplorerUrl(check.signature, cluster)}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        view tx
+                                    </a>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {fundingDialog}
+            </div>
         </div>
     );
 }

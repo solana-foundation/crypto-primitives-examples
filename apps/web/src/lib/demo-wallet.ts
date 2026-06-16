@@ -1,9 +1,4 @@
-import {
-    createKeyPairSignerFromBytes,
-    createKeyPairSignerFromPrivateKeyBytes,
-    type KeyPairSigner,
-    type TransactionSigner,
-} from '@solana/kit';
+import { createKeyPairSignerFromBytes, type KeyPairSigner } from '@solana/kit';
 
 const SEED_KEY = 'crypto-primitives-demo-wallet-seed';
 
@@ -12,11 +7,11 @@ const viteEnv = import.meta.env as unknown as { readonly VITE_LOCAL_WALLET_SECRE
 function randomSeedSigner(): Promise<KeyPairSigner> {
     const stored = localStorage.getItem(SEED_KEY);
     let seed = stored ? Uint8Array.from(atob(stored), c => c.charCodeAt(0)) : new Uint8Array();
-    if (seed.length !== 32) {
-        seed = crypto.getRandomValues(new Uint8Array(32));
+    if (seed.length !== 64) {
+        seed = crypto.getRandomValues(new Uint8Array(64));
         localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
     }
-    return createKeyPairSignerFromPrivateKeyBytes(seed);
+    return createKeyPairSignerFromBytes(seed);
 }
 
 let cached: Promise<KeyPairSigner> | null = null;
@@ -42,20 +37,24 @@ interface AirdropRpc {
     requestAirdrop(address: KeyPairSigner['address'], lamports: bigint): { send(): Promise<string> };
 }
 
+/** The demo wallet can't cover a run on this cluster and has to be funded by the user. */
+export class InsufficientDemoFundsError extends Error {
+    constructor(readonly address: KeyPairSigner['address']) {
+        super(`Demo wallet ${address} needs more SOL to run on this cluster.`);
+    }
+}
+
 /**
  * Ensures the demo wallet can pay for the demo. With `faucet` (localnet) it
  * tops the wallet up from the local faucet; otherwise it never airdrops and
  * instead asks the user to fund the wallet address themselves.
  */
-export async function ensureFunded(rpc: AirdropRpc, signer: TransactionSigner, faucet: boolean): Promise<void> {
+export async function ensureFunded(rpc: AirdropRpc, signer: KeyPairSigner, faucet: boolean): Promise<void> {
     const balance = (await rpc.getBalance(signer.address).send()).value;
 
     if (!faucet) {
         if (balance >= 50_000_000n) return;
-        throw new Error(
-            `Demo wallet ${signer.address} is low on SOL (a full run costs up to ~0.05 SOL). ` +
-                'Send it ~1 SOL on this cluster and retry.',
-        );
+        throw new InsufficientDemoFundsError(signer.address);
     }
 
     if (balance >= 5_000_000_000n) return;

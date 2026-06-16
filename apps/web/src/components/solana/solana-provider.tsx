@@ -35,9 +35,7 @@ function defaultClusterId(): SolanaClusterId {
     const stored = localStorage.getItem('crypto-primitives-cluster');
     const configured = viteEnv.VITE_DEFAULT_CLUSTER;
     const id = stored || configured || (viteEnv.DEV ? 'solana:localnet' : 'solana:devnet');
-    return id === 'solana:devnet' || id === 'solana:testnet' || id === 'solana:localnet' || id === 'solana:mainnet'
-        ? id
-        : 'solana:devnet';
+    return id === 'solana:devnet' || id === 'solana:localnet' ? id : 'solana:devnet';
 }
 
 function networkFromClusterId(clusterId: SolanaClusterId): 'devnet' | 'localnet' | 'mainnet' | 'testnet' {
@@ -51,12 +49,6 @@ function buildClusters() {
     const clusters = [
         ...(viteEnv.DEV ? [{ id: 'solana:localnet' as const, label: 'Localnet', url: '/rpc' }] : []),
         { id: 'solana:devnet' as const, label: 'Devnet', url: 'https://api.devnet.solana.com' },
-        { id: 'solana:testnet' as const, label: 'Testnet', url: 'https://api.testnet.solana.com' },
-        {
-            id: 'solana:mainnet' as const,
-            label: 'Mainnet',
-            url: viteEnv.VITE_MAINNET_RPC_URL ?? 'https://api.mainnet-beta.solana.com',
-        },
     ];
 
     const custom = readCustomRpc();

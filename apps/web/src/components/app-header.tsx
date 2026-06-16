@@ -55,7 +55,11 @@ function ClusterButton() {
         try {
             const network = await detectNetwork(trimmed);
             if (!network) {
-                toast.error('Could not detect mainnet, devnet, or testnet from this RPC');
+                toast.error('Could not detect the network from this RPC URL');
+                return;
+            }
+            if (network !== 'devnet') {
+                toast.error('This demo runs on devnet only — enter a devnet RPC URL');
                 return;
             }
             saveCustomRpc(trimmed, network);
@@ -112,8 +116,8 @@ function ClusterButton() {
                     <DialogHeader>
                         <DialogTitle>Custom RPC endpoint</DialogTitle>
                         <DialogDescription>
-                            Point the app at your own Solana RPC URL. The network is detected from the endpoint; saving
-                            reloads the page and selects it.
+                            Point the app at your own Solana RPC URL. Devnet only — the network is detected from the
+                            endpoint; saving reloads the page and selects it.
                         </DialogDescription>
                     </DialogHeader>
                     <TextInput
@@ -150,7 +154,7 @@ function NavLinks({ items, pathname }: { items: NavItem[]; pathname: string }) {
                         key={item.path}
                         to={item.path}
                         className={cn(
-                            'rounded-full px-3 py-2 text-sm font-medium transition-colors',
+                            'flex max-w-[8.5rem] items-center rounded-xl px-3 py-2 text-center text-sm font-medium leading-tight transition-colors',
                             active
                                 ? 'bg-sand-200 text-foreground'
                                 : 'text-sand-1100 hover:bg-sand-100 hover:text-foreground',
@@ -193,7 +197,7 @@ export function AppHeader() {
                     <span className="text-lg font-semibold tracking-tight text-foreground">Crypto Primitives</span>
                 </Link>
 
-                <nav className="hidden items-center gap-1 md:flex">
+                <nav className="hidden items-stretch gap-1 md:flex">
                     <NavLinks items={NAV_ITEMS} pathname={pathname} />
                 </nav>
 
