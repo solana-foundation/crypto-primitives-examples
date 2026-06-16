@@ -6,10 +6,11 @@ const viteEnv = import.meta.env as unknown as { readonly VITE_LOCAL_WALLET_SECRE
 
 function randomSeedSigner(): Promise<KeyPairSigner> {
     const stored = localStorage.getItem(SEED_KEY);
-    const seed = stored
-        ? Uint8Array.from(atob(stored), c => c.charCodeAt(0))
-        : crypto.getRandomValues(new Uint8Array(64));
-    if (!stored) localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
+    let seed = stored ? Uint8Array.from(atob(stored), c => c.charCodeAt(0)) : new Uint8Array();
+    if (seed.length !== 64) {
+        seed = crypto.getRandomValues(new Uint8Array(64));
+        localStorage.setItem(SEED_KEY, btoa(String.fromCharCode(...seed)));
+    }
     return createKeyPairSignerFromBytes(seed);
 }
 
