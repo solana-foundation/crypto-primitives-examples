@@ -32,6 +32,7 @@ import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/d
 import { getClusterFromClusterId, getSolanaExplorerAddressUrl, getSolanaExplorerUrl } from '@/lib/explorer';
 import { base64ToBytes, bytesToHex } from '@/lib/hex';
 import { getProgramAddress } from '@/lib/program';
+import { formatTransactionError } from '@/lib/transactionErrors';
 import { ellipsify } from '@/lib/utils';
 
 interface Row {
@@ -184,7 +185,7 @@ export function BlsRegistryDemo() {
             if (caught instanceof InsufficientDemoFundsError) {
                 requestFunding({ address: caught.address, onFunded: () => void addMember() });
             } else {
-                setError(caught instanceof Error ? caught.message : 'Add failed');
+                setError(formatTransactionError(caught));
             }
         } finally {
             setBusy(null);
@@ -203,7 +204,7 @@ export function BlsRegistryDemo() {
             await recordLastOp(signature, row.in ? 'G2 sub' : 'G2 add');
             setRows(prev => prev.map(r => (r.id === row.id ? { ...r, in: !r.in, sign: !r.in } : r)));
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Update failed');
+            setError(formatTransactionError(caught));
         } finally {
             setBusy(null);
         }
