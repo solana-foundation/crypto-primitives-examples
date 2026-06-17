@@ -20,9 +20,9 @@ export function ElGamal() {
                         without exposing the data behind it.
                     </p>
                     <p className="text-muted-foreground">
-                        Unlike the other two pages — BN254 and BLS12-381 — this isn't a{' '}
-                        <SyscallTerm>syscall</SyscallTerm> and there's no custom program; the validator ships with a
-                        built-in verifier for these proofs and checks them natively.
+                        Unlike BN254 and BLS12-381, this isn't a <SyscallTerm>syscall</SyscallTerm> and there's no
+                        custom program; the validator ships with a built-in verifier for these proofs and checks them
+                        natively.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
