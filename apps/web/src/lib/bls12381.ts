@@ -51,7 +51,7 @@ export function aggregatePubkeys(members: Member[]): string {
 }
 
 /**
- * Off-chain BLS verification (SIMD-0388 has no pairing syscall): aggregates the
+ * Off-chain BLS verification (no pairing syscall available yet): aggregates the
  * signing members' signatures and checks them against the aggregate key read
  * from the on-chain account. Passes only if the signing set equals the on-chain
  * member set.
