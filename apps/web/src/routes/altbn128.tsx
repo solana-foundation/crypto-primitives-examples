@@ -28,11 +28,6 @@ export function AltBn128() {
                             <span className="text-foreground">Oracle and bridge committees</span> — verify one aggregate
                             attestation from N nodes instead of N separate signatures
                         </li>
-                        <li>
-                            <span className="text-foreground">Ethereum-compatible curve tooling</span> — Solana uses the
-                            same alt_bn128/BN254 curve family as Ethereum's precompiles, so Groth16-style verifier logic
-                            can target Solana syscalls instead of EVM precompiles
-                        </li>
                     </ul>
                     <p className="text-sm text-sand-1100">
                         <span className="text-foreground">Security:</span> BN254 does not provide a full 128-bit
