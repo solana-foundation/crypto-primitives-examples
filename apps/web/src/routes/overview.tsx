@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 interface PrimitiveRow {
+    comingSoon?: boolean;
     encoding: string;
     example: string;
     featureKey: string;
@@ -101,6 +102,24 @@ const ROWS: PrimitiveRow[] = [
         uses: [
             'Confidential transfers — Token-2022 hides amounts while the chain validates them',
             'Encrypted-balance apps — prove statements about encrypted values without decrypting',
+        ],
+    },
+    {
+        comingSoon: true,
+        encoding: 'n/a',
+        example: 'Hash data with native SHA-512 on-chain — a 64-byte output for under 100 CU.',
+        featureKey: 's512oDwgx8hjMnaQjXfqqrZroVj4HvC6TkN3iSSWXCh',
+        kind: 'Syscall',
+        name: 'SHA-512 hash',
+        ops: 'SHA-512 hash (64-byte output)',
+        security: 'n/a',
+        simd: 'SIMD-0512',
+        simdUrl: `${SIMD_BASE}0512-sha512-syscall.md`,
+        status: 'pending',
+        to: '/sha512',
+        uses: [
+            'Cheap on-chain hashing — under 100 CU via the syscall vs thousands computed in BPF',
+            'Interop with SHA-512 systems — verify hashes or proofs from chains that standardize on SHA-512',
         ],
     },
 ];
@@ -231,7 +250,8 @@ export function Overview() {
                                                     className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
                                                     to={row.to}
                                                 >
-                                                    Demo <ArrowRight className="h-3.5 w-3.5" />
+                                                    {row.comingSoon ? 'Coming soon' : 'Demo'}{' '}
+                                                    <ArrowRight className="h-3.5 w-3.5" />
                                                 </Link>
                                             ) : (
                                                 <span className="text-xs text-sand-900">soon</span>
