@@ -48,13 +48,7 @@ export function Sha512() {
                         <h2 className="text-lg font-semibold text-foreground">No live demo yet</h2>
                         <p className="text-sm text-muted-foreground">
                             <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code> is proposed
-                            in SIMD-0512 with a feature gate reserved, but it is not activated on any cluster yet and
-                            needs Agave v4.1+. There is nothing to call on-chain until then.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            Once it activates, this page will hash an input both in the browser and on-chain and compare
-                            the 64-byte outputs alongside the real compute-unit cost — the same live,
-                            against-a-validator format as the other demos.
+                            in SIMD-0512 with a feature gate reserved, but it is not activated on any cluster yet.
                         </p>
                     </div>
                 </div>
