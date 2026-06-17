@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Repeat } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -54,10 +54,11 @@ export function Stage({
     );
 }
 
-export function Connector({ children }: { children: ReactNode }) {
+export function Connector({ children, loop = false }: { children: ReactNode; loop?: boolean }) {
+    const Icon = loop ? Repeat : ChevronDown;
     return (
-        <div className="flex items-center gap-2 pl-2 text-[11px] text-sand-1000">
-            <ChevronDown className="size-3.5 shrink-0" />
+        <div className={cn('flex items-center gap-2 pl-2 text-[11px]', loop ? 'text-foreground/70' : 'text-sand-1000')}>
+            <Icon className="size-3.5 shrink-0" />
             <span>{children}</span>
         </div>
     );

@@ -25,6 +25,7 @@ export function RegistryFlow({
                 always a single stored key, no matter how big the set gets
             </Stage>
             <Connector>chosen signers' keys aggregated off-chain</Connector>
+            <Connector loop>add, remove, and verify in any order — repeat anytime</Connector>
             <Stage location="off-chain" n={3} state={stage3} title="Verify">
                 {result
                     ? result.ok
