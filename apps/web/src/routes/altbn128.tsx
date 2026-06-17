@@ -12,11 +12,10 @@ export function AltBn128() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        A program can now check that a whole group signed something with one small signature and one
-                        pairing check, instead of verifying everyone individually. BN254 is the curve behind Solana's
-                        existing alt_bn128 pairing syscall used by Groth16-style verification, but arithmetic on its
-                        second group (G2) was missing; this <SyscallTerm>syscall</SyscallTerm> adds the G2 math this
-                        demo uses for combining public keys.
+                        A program can now check that a whole group signed a message with one small combined signature
+                        and one on-chain check, instead of verifying every member separately. BN254 is a curve Solana
+                        already supports — but the piece needed to combine public keys this way was missing. This{' '}
+                        <SyscallTerm>syscall</SyscallTerm> adds it.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
