@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 
-import { SyscallTerm } from '@/components/glossary-term';
+import { GlossaryTerm, SyscallTerm } from '@/components/glossary-term';
 import { BlsRegistryDemo } from '@/components/bls-registry-demo';
 
 export function Bls12381() {
@@ -12,16 +12,26 @@ export function Bls12381() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        BLS12-381 is the newer, stronger cousin of BN254 — the curve behind Ethereum consensus and
-                        Solana's upcoming Alpenglow. This <SyscallTerm>syscall</SyscallTerm> family brings its core math
-                        on-chain, on both halves of the curve (G1 and G2). Unlike alt_bn128 it includes subtraction, so
-                        a program can take a key back out of a combined key as cheaply as it added it.
+                        A group of signers — say a committee, a validator set, or a DAO's voters — can be represented
+                        on-chain by one combined key instead of a list of everyone's key. This{' '}
+                        <SyscallTerm>syscall</SyscallTerm> family folds their public keys into that single key and,
+                        unlike alt_bn128, can pull one back out just as cheaply — so signers can join or leave at any
+                        time.
+                    </p>
+                    <p className="text-muted-foreground">
+                        BLS12-381 is the curve behind Ethereum consensus and Solana's upcoming Alpenglow — a newer,
+                        stronger cousin of BN254. The syscalls work across both of its point groups,{' '}
+                        <GlossaryTerm definition="A curve is just a set of (x, y) points; a pairing curve has two groups of them, G1 and G2 — BLS puts public keys in one and signatures in the other.">
+                            G1 and G2
+                        </GlossaryTerm>
+                        .
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
-                            <span className="text-foreground">Aggregate-key registries</span> — members join and leave,
-                            the program stores one 192-byte key no matter how big the set gets (see the demo)
+                            <span className="text-foreground">Aggregate-key registries</span> — as members join or
+                            leave, one fixed 192-byte key on-chain always represents the whole group, however many
+                            members it has (see the demo)
                         </li>
                     </ul>
                     <p className="text-sm text-sand-1100">

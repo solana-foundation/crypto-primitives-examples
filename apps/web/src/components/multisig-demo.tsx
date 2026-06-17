@@ -169,7 +169,7 @@ export function MultisigDemo() {
                 setPhase('idle');
                 return;
             }
-            setError(caught instanceof Error ? caught.message : 'Setup failed');
+            setError(formatTransactionError(caught));
             setPhase('idle');
         }
     }

@@ -14,10 +14,15 @@ export function ElGamal() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        Unlike the two curve pages, this isn't a <SyscallTerm>syscall</SyscallTerm> and there's no
-                        custom program — the validator ships with a built-in verifier for zero-knowledge proofs over
-                        encrypted data. You encrypt a value, prove something about it without revealing it, and the
-                        chain checks the proof natively.
+                        Encrypt a value with ElGamal, then prove a fact about it — that it equals some number, or falls
+                        in a range — without ever revealing the value itself. The chain verifies the proof and accepts
+                        the fact while the number stays hidden. That's a zero-knowledge proof: it confirms a statement
+                        without exposing the data behind it.
+                    </p>
+                    <p className="text-muted-foreground">
+                        Unlike BN254 and BLS12-381, this isn't a <SyscallTerm>syscall</SyscallTerm> and there's no
+                        custom program; the validator ships with a built-in verifier for these proofs and checks them
+                        natively.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">

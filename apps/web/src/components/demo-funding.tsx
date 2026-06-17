@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { getTransferSolInstruction } from '@solana-program/system';
 import { useKitTransactionSigner, useWallet } from '@solana/connector/react';
 import { Button, TextInput } from '@solana/design-system';
@@ -13,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { formatTransactionError } from '@/lib/transactionErrors';
 import { ellipsify } from '@/lib/utils';
 
 const DEFAULT_AMOUNT = '0.1';
@@ -31,6 +32,7 @@ export function useDemoWalletFunding() {
     const [amount, setAmount] = useState(DEFAULT_AMOUNT);
     const [funding, setFunding] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const requestIdRef = useRef(0);
 
     const requestFunding = useCallback((req: FundingRequest) => {
         setError(null);
@@ -39,7 +41,8 @@ export function useDemoWalletFunding() {
     }, []);
 
     function close() {
-        if (funding) return;
+        requestIdRef.current += 1;
+        setFunding(false);
         setRequest(null);
     }
 
@@ -50,6 +53,7 @@ export function useDemoWalletFunding() {
             setError('Enter an amount greater than 0');
             return;
         }
+        const requestId = (requestIdRef.current += 1);
         setFunding(true);
         setError(null);
         try {
@@ -59,13 +63,15 @@ export function useDemoWalletFunding() {
                 source: signer,
             });
             await signAndSend([instruction], signer);
+            if (requestIdRef.current !== requestId) return;
             const { onFunded } = request;
             setRequest(null);
             onFunded();
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Funding failed');
+            if (requestIdRef.current !== requestId) return;
+            setError(formatTransactionError(caught));
         } finally {
-            setFunding(false);
+            if (requestIdRef.current === requestId) setFunding(false);
         }
     }
 
@@ -107,7 +113,7 @@ export function useDemoWalletFunding() {
                     </div>
                 )}
                 <DialogFooter>
-                    <Button disabled={funding} onClick={close} variant="secondary">
+                    <Button onClick={close} variant="secondary">
                         Cancel
                     </Button>
                     <Button disabled={!isConnected || funding} loading={funding} onClick={() => void fund()}>

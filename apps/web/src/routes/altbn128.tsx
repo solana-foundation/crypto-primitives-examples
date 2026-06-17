@@ -12,10 +12,11 @@ export function AltBn128() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        BN254 is the curve Solana programs already use for ZK proof verification, but only half of it
-                        was exposed. This <SyscallTerm>syscall</SyscallTerm> adds the other half (G2) — the math for
-                        combining public keys. A program can now check that a whole group signed something with one
-                        small signature and one check, instead of verifying everyone individually.
+                        A program can now check that a whole group signed something with one small signature and one
+                        check, instead of verifying everyone individually. BN254 is the curve Solana programs already
+                        use for ZK proof verification, but only half of it was exposed; this{' '}
+                        <SyscallTerm>syscall</SyscallTerm> adds the other half (G2) — the math for combining public
+                        keys.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
