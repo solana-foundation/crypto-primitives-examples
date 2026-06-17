@@ -370,7 +370,10 @@ export function ElGamalDemo() {
                                 {COMPARISON_SYMBOL[generated.op]} {generated.claimedAmount}
                             </span>
                             {!generated.honest && (
-                                <span className="text-destructive"> — but it doesn't; watch the chain catch it</span>
+                                <span className="text-destructive">
+                                    {' '}
+                                    — this claim is false. Press Verify on-chain to watch the chain reject it.
+                                </span>
                             )}
                         </div>
                     </div>
