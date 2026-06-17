@@ -15,7 +15,7 @@ export function Sha512() {
                         SIMD-0512 proposes the missing SHA-512 counterpart: a <SyscallTerm>syscall</SyscallTerm> with
                         the same interface as the existing{' '}
                         <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code>, producing a
-                        64-byte digest for a fraction of the compute a pure-BPF implementation costs.
+                        64-byte output for a fraction of the compute a pure-BPF implementation costs.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what it would enable:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">

@@ -107,7 +107,7 @@ const ROWS: PrimitiveRow[] = [
     {
         comingSoon: true,
         encoding: 'n/a',
-        example: 'Hash data with a proposed native SHA-512 syscall — a 64-byte digest at syscall cost.',
+        example: 'Hash data with a proposed native SHA-512 syscall — a 64-byte output at syscall cost.',
         featureKey: 's512oDwgx8hjMnaQjXfqqrZroVj4HvC6TkN3iSSWXCh',
         kind: 'Syscall',
         name: 'SHA-512 hash',
