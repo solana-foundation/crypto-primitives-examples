@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { ArrowRight, Info } from 'lucide-react';
 
-import { SyscallTerm } from '@/components/glossary-term';
+import { PairingTerm, SyscallTerm } from '@/components/glossary-term';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PrimitiveRow {
@@ -89,6 +89,19 @@ const ROWS: PrimitiveRow[] = [
     },
 ];
 
+function renderPrimitiveName(name: string) {
+    const term = 'pairing curve';
+    const index = name.indexOf(term);
+    if (index === -1) return name;
+    return (
+        <>
+            {name.slice(0, index)}
+            <PairingTerm>{term}</PairingTerm>
+            {name.slice(index + term.length)}
+        </>
+    );
+}
+
 export function Overview() {
     const { data: featureGates } = useFeatureGates();
     return (
@@ -98,8 +111,8 @@ export function Overview() {
                     Cryptographic primitives in Agave
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                    Recent additions to the Solana validator's cryptography — curve, pairing, and zero-knowledge
-                    primitives. What each does, how they differ, what they unlock.
+                    Recent additions to the Solana validator's cryptography — curve, <PairingTerm>pairing</PairingTerm>,
+                    and zero-knowledge primitives. What each does, how they differ, what they unlock.
                 </p>
             </section>
 
@@ -108,8 +121,12 @@ export function Overview() {
                 <p className="text-sm text-muted-foreground">
                     These are just hard math problems the Solana validator solves for you — the kind a program could
                     never afford to work out itself on-chain. Things like proving a big group signed off on something
-                    with one signature (<em>pairing</em>, on an elliptic <em>curve</em>), or proving a number is valid
-                    without showing it (<em>zero-knowledge</em>).
+                    with one signature (
+                    <PairingTerm>
+                        <em>pairing</em>
+                    </PairingTerm>
+                    , on an elliptic <em>curve</em>), or proving a number is valid without showing it (
+                    <em>zero-knowledge</em>).
                 </p>
                 <p className="text-sm text-muted-foreground">
                     A program calls them like built-in functions (<em>syscalls</em>) and gets a fast, cheap answer. Here
@@ -152,7 +169,9 @@ export function Overview() {
                     <tbody>
                         {ROWS.map(row => (
                             <tr className="border-b last:border-b-0" key={row.name}>
-                                <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
+                                <td className="px-4 py-3 font-medium text-foreground">
+                                    {renderPrimitiveName(row.name)}
+                                </td>
                                 <td className="px-4 py-3 font-berkeley-mono text-xs">
                                     <a
                                         className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"

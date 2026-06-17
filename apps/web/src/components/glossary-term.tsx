@@ -21,3 +21,10 @@ const SYSCALL_DEFINITION =
 export function SyscallTerm({ children }: { children: ReactNode }) {
     return <GlossaryTerm definition={SYSCALL_DEFINITION}>{children}</GlossaryTerm>;
 }
+
+const PAIRING_DEFINITION =
+    'A curve is just a set of (x, y) points; a key or signature is one point on it. Pairing is a special check that two points correspond — the trick that lets one signature prove a whole group signed.';
+
+export function PairingTerm({ children }: { children: ReactNode }) {
+    return <GlossaryTerm definition={PAIRING_DEFINITION}>{children}</GlossaryTerm>;
+}
