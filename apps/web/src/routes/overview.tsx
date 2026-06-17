@@ -107,11 +107,11 @@ const ROWS: PrimitiveRow[] = [
     {
         comingSoon: true,
         encoding: 'n/a',
-        example: 'Hash data with native SHA-512 on-chain — a 64-byte digest for under 100 CU.',
+        example: 'Hash data with native SHA-512 on-chain — a 64-byte output for under 100 CU.',
         featureKey: 's512oDwgx8hjMnaQjXfqqrZroVj4HvC6TkN3iSSWXCh',
         kind: 'Syscall',
         name: 'SHA-512 hash',
-        ops: 'SHA-512 hash (64-byte digest)',
+        ops: 'SHA-512 hash (64-byte output)',
         security: 'n/a',
         simd: 'SIMD-0512',
         simdUrl: `${SIMD_BASE}0512-sha512-syscall.md`,
@@ -119,7 +119,7 @@ const ROWS: PrimitiveRow[] = [
         to: '/sha512',
         uses: [
             'Cheap on-chain hashing — under 100 CU via the syscall vs thousands computed in BPF',
-            'Interop with SHA-512 systems — verify digests or proofs from chains that standardize on SHA-512',
+            'Interop with SHA-512 systems — verify hashes or proofs from chains that standardize on SHA-512',
         ],
     },
 ];

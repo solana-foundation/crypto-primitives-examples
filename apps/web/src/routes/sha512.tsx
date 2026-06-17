@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 
-import { SyscallTerm } from '@/components/glossary-term';
+import { HashTerm, SyscallTerm } from '@/components/glossary-term';
 
 export function Sha512() {
     return (
@@ -11,10 +11,10 @@ export function Sha512() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        Hashing is the one everyday primitive Solana programs still compute the slow way. This{' '}
-                        <SyscallTerm>syscall</SyscallTerm> adds a native SHA-512 — the same interface as the existing{' '}
-                        <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code> — producing a
-                        64-byte digest for a fraction of the compute a pure-BPF implementation costs.
+                        <HashTerm>Hashing</HashTerm> is the one everyday primitive Solana programs still compute the
+                        slow way. This <SyscallTerm>syscall</SyscallTerm> adds a native SHA-512 — the same interface as
+                        the existing <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code> —
+                        producing a 64-byte output for a fraction of the compute a pure-BPF implementation costs.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what it would enable:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -23,7 +23,7 @@ export function Sha512() {
                             under 100 CU via the syscall, versus thousands computed in BPF
                         </li>
                         <li>
-                            <span className="text-foreground">Interop with SHA-512 systems</span> — verify digests,
+                            <span className="text-foreground">Interop with SHA-512 systems</span> — verify hashes,
                             commitments, or Merkle proofs produced by chains and protocols that standardize on SHA-512
                         </li>
                         <li>
@@ -53,7 +53,7 @@ export function Sha512() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                             Once it activates, this page will hash an input both in the browser and on-chain and compare
-                            the 64-byte digests alongside the real compute-unit cost — the same live,
+                            the 64-byte outputs alongside the real compute-unit cost — the same live,
                             against-a-validator format as the other demos.
                         </p>
                     </div>

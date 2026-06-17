@@ -28,3 +28,10 @@ const PAIRING_DEFINITION =
 export function PairingTerm({ children }: { children: ReactNode }) {
     return <GlossaryTerm definition={PAIRING_DEFINITION}>{children}</GlossaryTerm>;
 }
+
+const HASH_DEFINITION =
+    'A one-way function: any input produces a fixed-size output you cannot reverse, and it is infeasible to find two inputs that produce the same output (a collision).';
+
+export function HashTerm({ children }: { children: ReactNode }) {
+    return <GlossaryTerm definition={HASH_DEFINITION}>{children}</GlossaryTerm>;
+}
