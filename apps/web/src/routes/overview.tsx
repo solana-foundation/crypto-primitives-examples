@@ -119,7 +119,7 @@ const ROWS: PrimitiveRow[] = [
         to: '/sha512',
         uses: [
             'Cheap on-chain hashing — under 100 CU via the syscall vs thousands computed in BPF',
-            'Interop with SHA-512 systems — verify hashes or proofs from chains that standardize on SHA-512',
+            'Interop with SHA-512 systems — verify hashes or proofs from external systems that use SHA-512',
         ],
     },
 ];
@@ -165,8 +165,8 @@ export function Overview() {
                     <em>zero-knowledge</em>).
                 </p>
                 <p className="text-sm text-muted-foreground">
-                    A program calls them like built-in functions (<em>syscalls</em>) and gets a fast, cheap answer. Here
-                    are the three newest.
+                    A program calls them like built-in functions — a <em>syscall</em>, or a native program for the
+                    zero-knowledge proofs — and gets a fast, cheap answer. Here are the four newest.
                 </p>
             </section>
 

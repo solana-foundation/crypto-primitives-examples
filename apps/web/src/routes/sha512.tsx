@@ -24,7 +24,8 @@ export function Sha512() {
                         </li>
                         <li>
                             <span className="text-foreground">Interop with SHA-512 systems</span> — verify hashes,
-                            commitments, or Merkle proofs produced by chains and protocols that standardize on SHA-512
+                            commitments, or Merkle proofs from external systems that use SHA-512 (rather than SHA-256 or
+                            Keccak)
                         </li>
                         <li>
                             <span className="text-foreground">Ed25519-family checks</span> — SHA-512 is the hash inside
@@ -48,7 +49,8 @@ export function Sha512() {
                         <h2 className="text-lg font-semibold text-foreground">No live demo yet</h2>
                         <p className="text-sm text-muted-foreground">
                             <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code> is proposed
-                            in SIMD-0512 with a feature gate reserved, but it is not activated on any cluster yet.
+                            in SIMD-0512 and tracked in the feature-gate registry, but it is not activated on any
+                            cluster yet.
                         </p>
                     </div>
                 </div>

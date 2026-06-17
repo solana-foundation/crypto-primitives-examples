@@ -22,9 +22,9 @@ export function MultisigFlow({
             <Stage location="off-chain" n={1} state={stage1} title="Member keys">
                 {memberCount} BLS keypairs, generated in your browser
             </Stage>
-            <Connector>register · folded together with G2 addition</Connector>
-            <Stage location="on-chain" n={2} state={stage2} title="One aggregate key">
-                every key summed into a single stored key
+            <Connector>register · each key stored on-chain</Connector>
+            <Stage location="on-chain" n={2} state={stage2} title="Member keys stored">
+                all member keys kept on-chain — the full set, not yet combined
             </Stage>
             <Connector>chosen signers sign the message → one aggregate signature</Connector>
             <Stage location="on-chain" n={3} state={stage3} title="One pairing check">
@@ -32,7 +32,7 @@ export function MultisigFlow({
                     ? result.ok
                         ? `✓ all ${memberCount} signed`
                         : `✗ only ${signerCount} of ${memberCount} signed — rejected`
-                    : 'passes only if every member signed'}
+                    : 'folds the stored keys with G2 addition, then one pairing check — passes only if every member signed'}
             </Stage>
         </FlowDiagram>
     );

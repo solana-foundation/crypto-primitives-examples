@@ -213,7 +213,7 @@ GitHub Actions runs split workflows on PRs and pushes to `main`:
 ## Notes & Gotchas
 
 - **alt_bn128 has no subtraction.** Agave 4.0 dispatches only add (op 4), mul (op 6), and pairing (op 3) for G2; subtraction returns `InvalidAttribute`. BLS12-381 does have subtraction — this contrast drives the difference between the multisig and registry demos.
-- **BLS12-381 has no pairing syscall**, so BLS signatures cannot be verified on-chain; the registry demo verifies off-chain and is labeled as such.
+- **BLS12-381 pairing is not callable from a program yet.** Agave 4.0 implements `sol_curve_pairing_map` for BLS12-381 (the SIMD-0388 feature is active on devnet and mainnet), but its public binding signature isn't finalized — SIMD-0388 updates it — so a program can't invoke it directly. The registry demo therefore verifies off-chain.
 - **Byte formats differ.** alt_bn128 G2 is 128 bytes in EIP-197 big-endian order; BLS12-381 is uncompressed Zcash/blstrs big-endian (G1 96 bytes, G2 192 bytes). See `apps/web/src/lib/` for the converters.
 - **Transaction size cap (1232 bytes)** limits inline 128-byte pubkeys to ~7 per transaction; the multisig stores all keys in chunked transactions, while the registry stores only the running aggregate (one point) so it scales freely.
 - The demo wallet and any keys generated in the browser are throwaway material for local development only — never real keys.

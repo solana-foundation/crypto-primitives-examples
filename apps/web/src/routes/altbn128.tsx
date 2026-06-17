@@ -14,15 +14,14 @@ export function AltBn128() {
                     <p className="text-muted-foreground">
                         A program can now check that a whole group signed something with one small signature and one
                         check, instead of verifying everyone individually. BN254 is the curve Solana programs already
-                        use for ZK proof verification, but only half of it was exposed; this{' '}
-                        <SyscallTerm>syscall</SyscallTerm> adds the other half (G2) — the math for combining public
-                        keys.
+                        use for ZK proof verification, but arithmetic on its second group (G2) wasn't exposed; this{' '}
+                        <SyscallTerm>syscall</SyscallTerm> adds it — the math for combining public keys.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
                             <span className="text-foreground">BLS multisigs</span> — any number of members, one 64-byte
-                            signature on the transaction, one on-chain check (see the demo)
+                            aggregate signature (regardless of count), one on-chain pairing check (see the demo)
                         </li>
                         <li>
                             <span className="text-foreground">Oracle and bridge committees</span> — verify one aggregate
@@ -30,8 +29,8 @@ export function AltBn128() {
                         </li>
                         <li>
                             <span className="text-foreground">Ethereum-compatible ZK tooling</span> — Solana uses the
-                            same curve as Ethereum, so the zero-knowledge proofs and tooling built there work on Solana
-                            with no changes
+                            same curve as Ethereum, so proofs and proving tooling built there carry over; the on-chain
+                            verifier just calls Solana's syscalls instead of Ethereum's precompiles
                         </li>
                     </ul>
                     <p className="text-sm text-sand-1100">

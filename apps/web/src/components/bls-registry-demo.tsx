@@ -267,9 +267,7 @@ export function BlsRegistryDemo() {
                         <li>
                             Pick who signs and verify — the aggregate signature only matches the on-chain key when the
                             signers are exactly the current members.{' '}
-                            <span className="text-sand-1000">
-                                Verification runs off-chain — SIMD-0388 ships group ops only, no pairing syscall yet.
-                            </span>
+                            <span className="text-sand-1000">Verification runs off-chain in this demo.</span>
                         </li>
                     </ol>
                 </div>

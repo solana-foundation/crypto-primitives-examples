@@ -31,7 +31,7 @@ export function RegistryFlow({
                     ? result.ok
                         ? '✓ signer set matches the registry'
                         : "✗ signers don't match the stored key"
-                    : "signers' aggregate vs the stored key (no pairing syscall yet)"}
+                    : "signers' aggregate vs the stored key (verified off-chain)"}
             </Stage>
         </FlowDiagram>
     );
