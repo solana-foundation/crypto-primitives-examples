@@ -119,7 +119,7 @@ const ROWS: PrimitiveRow[] = [
         to: '/sha512',
         uses: [
             'Cheap on-chain hashing — under 100 CU via the syscall vs thousands computed in BPF',
-            'Interop with SHA-512 systems — verify hashes or proofs from chains that standardize on SHA-512',
+            'Interop with SHA-512 systems — verify hashes or proofs from external systems that use SHA-512',
         ],
     },
 ];

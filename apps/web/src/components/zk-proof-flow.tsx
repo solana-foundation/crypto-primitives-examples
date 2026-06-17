@@ -29,12 +29,12 @@ export function ZkProofFlow({
                 proof bytes → ZK ElGamal verifier program (nothing else is sent)
             </Stage>
             <Connector>the program checks the proof</Connector>
-            <Stage location="on-chain" n={3} state={stage3} title="Verified — nothing stored">
+            <Stage location="on-chain" n={3} state={stage3} title="Verified — no state stored">
                 {result
                     ? result.ok
                         ? passLabel
                         : failLabel
-                    : 'the program verifies and writes nothing — your encrypted values never leave the browser'}
+                    : 'the program verifies and writes no account state — your secret value never leaves the browser'}
             </Stage>
         </FlowDiagram>
     );

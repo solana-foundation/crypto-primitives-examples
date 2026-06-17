@@ -36,7 +36,7 @@ export function Bls12381() {
                     </ul>
                     <p className="text-sm text-sand-1100">
                         <span className="text-foreground">Security:</span> BLS12-381 is a bigger curve designed after
-                        the attacks that weakened BN254, so it keeps the full 128 bits.
+                        the attacks that weakened BN254, so it targets the full 128-bit level.
                     </p>
                     <a
                         className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
