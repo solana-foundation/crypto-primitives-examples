@@ -191,7 +191,7 @@ export function Overview() {
                                     <tr className={cn(!isOpen && 'border-b last:border-b-0')}>
                                         <td className="px-4 py-3 font-medium text-foreground">
                                             <button
-                                                aria-controls={`detail-${row.simd}`}
+                                                aria-controls={isOpen ? `detail-${row.simd}` : undefined}
                                                 aria-expanded={isOpen}
                                                 className="inline-flex items-center gap-1.5 text-left hover:text-foreground"
                                                 onClick={() => setExpanded(isOpen ? null : row.name)}
