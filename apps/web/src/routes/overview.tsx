@@ -83,7 +83,7 @@ const ROWS: PrimitiveRow[] = [
         security: '128-bit',
         simd: 'SIMD-0388',
         simdUrl: `${SIMD_BASE}0388-bls12-381-syscalls.md`,
-        status: 'devnet',
+        status: 'mainnet',
         to: '/bls12381',
         uses: ['Aggregate-key registries — members join or leave; the stored key stays one 192-byte point'],
     },
@@ -94,7 +94,7 @@ const ROWS: PrimitiveRow[] = [
         kind: 'Native program',
         name: 'Zero Knowledge ElGamal proofs',
         ops: 'Verify ZK proofs',
-        security: 'n/a',
+        security: 'proof-specific',
         simd: 'SIMD-0153',
         simdUrl: `${SIMD_BASE}0153-elgamal-proof-program.md`,
         status: 'mainnet',
@@ -107,7 +107,7 @@ const ROWS: PrimitiveRow[] = [
     {
         comingSoon: true,
         encoding: 'n/a',
-        example: 'Hash data with native SHA-512 on-chain — a 64-byte output for under 100 CU.',
+        example: 'Hash data with a proposed native SHA-512 syscall — a 64-byte output at syscall cost.',
         featureKey: 's512oDwgx8hjMnaQjXfqqrZroVj4HvC6TkN3iSSWXCh',
         kind: 'Syscall',
         name: 'SHA-512 hash',
@@ -118,7 +118,7 @@ const ROWS: PrimitiveRow[] = [
         status: 'pending',
         to: '/sha512',
         uses: [
-            'Cheap on-chain hashing — under 100 CU via the syscall vs thousands computed in BPF',
+            'Cheap on-chain hashing — the proposal targets the same cost model as existing hash syscalls',
             'Interop with SHA-512 systems — verify hashes or proofs from external systems that use SHA-512',
         ],
     },
@@ -147,8 +147,8 @@ export function Overview() {
                     Cryptographic primitives in Agave
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                    Recent additions to the Solana validator's cryptography — curve, <PairingTerm>pairing</PairingTerm>,
-                    and zero-knowledge primitives. What each does, how they differ, what they unlock.
+                    Recent Solana cryptography features and proposals — curve, <PairingTerm>pairing</PairingTerm>,
+                    zero-knowledge, and hash primitives. What each does, how they differ, what they unlock.
                 </p>
             </section>
 
@@ -166,7 +166,7 @@ export function Overview() {
                 </p>
                 <p className="text-sm text-muted-foreground">
                     A program calls them like built-in functions — a <em>syscall</em>, or a native program for the
-                    zero-knowledge proofs — and gets a fast, cheap answer. Here are the four newest.
+                    zero-knowledge proofs — and gets a fast, cheap answer. Here are the four covered here.
                 </p>
             </section>
 
@@ -193,7 +193,7 @@ export function Overview() {
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             n-bit security means the best known attack needs about 2<sup>n</sup>{' '}
-                                            operations — anything near 100 bits is far beyond reach.
+                                            operations; larger numbers mean a wider security margin.
                                         </TooltipContent>
                                     </Tooltip>
                                 </span>

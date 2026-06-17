@@ -12,10 +12,10 @@ export function AltBn128() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        A program can now check that a whole group signed something with one small signature and one
-                        check, instead of verifying everyone individually. BN254 is the curve Solana programs already
-                        use for ZK proof verification, but arithmetic on its second group (G2) wasn't exposed; this{' '}
-                        <SyscallTerm>syscall</SyscallTerm> adds it — the math for combining public keys.
+                        A program can now check that a whole group signed a message with one small combined signature
+                        and one on-chain check, instead of verifying every member separately. BN254 is a curve Solana
+                        already supports — but the piece needed to combine public keys this way was missing. This{' '}
+                        <SyscallTerm>syscall</SyscallTerm> adds it.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -27,15 +27,11 @@ export function AltBn128() {
                             <span className="text-foreground">Oracle and bridge committees</span> — verify one aggregate
                             attestation from N nodes instead of N separate signatures
                         </li>
-                        <li>
-                            <span className="text-foreground">Ethereum-compatible ZK tooling</span> — Solana uses the
-                            same curve as Ethereum, so proofs and proving tooling built there carry over; the on-chain
-                            verifier just calls Solana's syscalls instead of Ethereum's precompiles
-                        </li>
                     </ul>
                     <p className="text-sm text-sand-1100">
-                        <span className="text-foreground">Security:</span> BN254 aimed for 128-bit security, but newer
-                        attacks lowered the estimate to ~100; still considered safe in practice.
+                        <span className="text-foreground">Security:</span> BN254 does not provide a full 128-bit
+                        security level; treat it as roughly 100-bit and prefer BLS12-381 for new 128-bit designs when
+                        BN254 compatibility is not required.
                     </p>
                     <a
                         className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"

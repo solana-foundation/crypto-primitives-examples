@@ -20,9 +20,9 @@ export function ElGamal() {
                         without exposing the data behind it.
                     </p>
                     <p className="text-muted-foreground">
-                        Unlike BN254 and BLS12-381, this isn't a <SyscallTerm>syscall</SyscallTerm> and there's no
-                        custom program; the validator ships with a built-in verifier for these proofs and checks them
-                        natively.
+                        Unlike BN254 and BLS12-381, this isn't a <SyscallTerm>syscall</SyscallTerm> and there is no
+                        verifier program in this repository. Solana exposes a native built-in ZK ElGamal Proof program
+                        that verifies these proofs.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -36,7 +36,7 @@ export function ElGamal() {
                         </li>
                         <li>
                             <span className="text-foreground">Zero-balance checks</span> — prove an encrypted balance is
-                            exactly zero, the check that gates closing a confidential token account
+                            exactly zero, which is useful for empty-balance and close-account flows
                         </li>
                     </ul>
                     <a
