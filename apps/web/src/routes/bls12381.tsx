@@ -15,12 +15,12 @@ export function Bls12381() {
                         A group of signers — say a committee, a validator set, or a DAO's voters — can be represented
                         on-chain by one combined key instead of a list of everyone's key. This{' '}
                         <SyscallTerm>syscall</SyscallTerm> family folds their public keys into that single key and,
-                        unlike alt_bn128, can pull one back out just as cheaply — so signers can join or leave at any
-                        time.
+                        unlike the BN254 path used in this repo, can subtract a provided member key just as cheaply — so
+                        signers can join or leave at any time.
                     </p>
                     <p className="text-muted-foreground">
-                        BLS12-381 is the curve behind Ethereum consensus and Solana's upcoming Alpenglow — a newer,
-                        stronger cousin of BN254. The syscalls work across both of its point groups,{' '}
+                        BLS12-381 is the curve behind Ethereum consensus and a newer, stronger cousin of BN254. The
+                        syscalls work across both of its point groups,{' '}
                         <GlossaryTerm definition="A curve is just a set of (x, y) points; a pairing curve has two groups of them, G1 and G2 — BLS puts public keys in one and signatures in the other.">
                             G1 and G2
                         </GlossaryTerm>
@@ -35,8 +35,8 @@ export function Bls12381() {
                         </li>
                     </ul>
                     <p className="text-sm text-sand-1100">
-                        <span className="text-foreground">Security:</span> BLS12-381 is a bigger curve designed after
-                        the attacks that weakened BN254, so it targets the full 128-bit level.
+                        <span className="text-foreground">Security:</span> BLS12-381 targets the 128-bit security level
+                        that BN254 no longer provides.
                     </p>
                     <a
                         className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"

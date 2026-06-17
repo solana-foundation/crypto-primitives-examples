@@ -11,16 +11,19 @@ export function Sha512() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        <HashTerm>Hashing</HashTerm> is the one everyday primitive Solana programs still compute the
-                        slow way. This <SyscallTerm>syscall</SyscallTerm> adds a native SHA-512 — the same interface as
-                        the existing <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code> —
-                        producing a 64-byte output for a fraction of the compute a pure-BPF implementation costs.
+                        <HashTerm>Hashing</HashTerm> already has native SHA-256, Keccak, and Blake3 paths on Solana.
+                        SIMD-0512 proposes the missing SHA-512 counterpart: a <SyscallTerm>syscall</SyscallTerm> with
+                        the same interface as the existing{' '}
+                        <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code>, producing a
+                        64-byte digest for a fraction of the compute a pure-BPF implementation costs.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what it would enable:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
-                            <span className="text-foreground">Cheap on-chain hashing</span> — a short SHA-512 costs
-                            under 100 CU via the syscall, versus thousands computed in BPF
+                            <span className="text-foreground">Cheap on-chain hashing</span> —{' '}
+                            <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code> would follow{' '}
+                            <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code>&apos;s cost
+                            model, so a short hash lands under 100 CU via syscall versus thousands computed in BPF
                         </li>
                         <li>
                             <span className="text-foreground">Interop with SHA-512 systems</span> — verify hashes,
@@ -28,8 +31,8 @@ export function Sha512() {
                             Keccak)
                         </li>
                         <li>
-                            <span className="text-foreground">Ed25519-family checks</span> — SHA-512 is the hash inside
-                            Ed25519, so programs reimplementing those steps get it natively
+                            <span className="text-foreground">Ed25519-adjacent checks</span> — SHA-512 is the hash used
+                            inside Ed25519, so programs that need that same hashing step would get it natively
                         </li>
                     </ul>
                     <a

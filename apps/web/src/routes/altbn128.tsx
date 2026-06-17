@@ -13,9 +13,10 @@ export function AltBn128() {
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
                         A program can now check that a whole group signed something with one small signature and one
-                        check, instead of verifying everyone individually. BN254 is the curve Solana programs already
-                        use for ZK proof verification, but arithmetic on its second group (G2) wasn't exposed; this{' '}
-                        <SyscallTerm>syscall</SyscallTerm> adds it — the math for combining public keys.
+                        pairing check, instead of verifying everyone individually. BN254 is the curve behind Solana's
+                        existing alt_bn128 pairing syscall used by Groth16-style verification, but arithmetic on its
+                        second group (G2) was missing; this <SyscallTerm>syscall</SyscallTerm> adds the G2 math this
+                        demo uses for combining public keys.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -28,14 +29,15 @@ export function AltBn128() {
                             attestation from N nodes instead of N separate signatures
                         </li>
                         <li>
-                            <span className="text-foreground">Ethereum-compatible ZK tooling</span> — Solana uses the
-                            same curve as Ethereum, so proofs and proving tooling built there carry over; the on-chain
-                            verifier just calls Solana's syscalls instead of Ethereum's precompiles
+                            <span className="text-foreground">Ethereum-compatible curve tooling</span> — Solana uses the
+                            same alt_bn128/BN254 curve family as Ethereum's precompiles, so Groth16-style verifier logic
+                            can target Solana syscalls instead of EVM precompiles
                         </li>
                     </ul>
                     <p className="text-sm text-sand-1100">
-                        <span className="text-foreground">Security:</span> BN254 aimed for 128-bit security, but newer
-                        attacks lowered the estimate to ~100; still considered safe in practice.
+                        <span className="text-foreground">Security:</span> BN254 does not provide a full 128-bit
+                        security level; treat it as roughly 100-bit and prefer BLS12-381 for new 128-bit designs when
+                        BN254 compatibility is not required.
                     </p>
                     <a
                         className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
