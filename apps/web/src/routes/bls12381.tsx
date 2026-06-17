@@ -21,7 +21,7 @@ export function Bls12381() {
                     <p className="text-muted-foreground">
                         BLS12-381 is the curve behind Ethereum consensus and Solana's upcoming Alpenglow — a newer,
                         stronger cousin of BN254. The syscalls work across both of its point groups,{' '}
-                        <GlossaryTerm definition="A pairing curve has two groups of points, G1 and G2; BLS puts public keys in one and signatures in the other.">
+                        <GlossaryTerm definition="A curve is just a set of (x, y) points; a pairing curve has two groups of them, G1 and G2 — BLS puts public keys in one and signatures in the other.">
                             G1 and G2
                         </GlossaryTerm>
                         .
