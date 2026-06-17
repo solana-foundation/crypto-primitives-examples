@@ -6,6 +6,7 @@ import { AltBn128 } from '@/routes/altbn128';
 import { Bls12381 } from '@/routes/bls12381';
 import { ElGamal } from '@/routes/elgamal';
 import { Overview } from '@/routes/overview';
+import { Sha512 } from '@/routes/sha512';
 
 export function App() {
     return (
@@ -40,6 +41,14 @@ export function App() {
                     element={
                         <AppLayout>
                             <ElGamal />
+                        </AppLayout>
+                    }
+                />
+                <Route
+                    path="/sha512"
+                    element={
+                        <AppLayout>
+                            <Sha512 />
                         </AppLayout>
                     }
                 />
