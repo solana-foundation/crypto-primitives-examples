@@ -2,6 +2,7 @@ import {
     isSolanaError,
     SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
     SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
+    SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR,
 } from '@solana/kit';
 
 const PROGRAM_ERROR_MESSAGES: Record<number, string> = {
@@ -13,9 +14,6 @@ const PROGRAM_ERROR_MESSAGES: Record<number, string> = {
     5: 'Multisig account is not owned by this program or is not writable',
     6: 'Multisig account does not have capacity for more signers',
 };
-
-const RPC_TRANSPORT_HTTP_ERROR = 8100002;
-const JSON_RPC_PREFLIGHT_FAILURE = -32002;
 
 function errorContext(error: unknown): Record<string, unknown> | undefined {
     if (error && typeof error === 'object' && 'context' in error) {
@@ -70,19 +68,16 @@ export function formatTransactionError(error: unknown): string {
         return PROGRAM_ERROR_MESSAGES[programCode];
     }
 
-    const context = errorContext(error);
-    const code = Number(context?.__code);
-
-    if (code === RPC_TRANSPORT_HTTP_ERROR) {
-        const status = Number(context?.statusCode);
+    if (isSolanaError(error, SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR)) {
+        const status = error.context.statusCode;
         if (status === 429) {
             return 'RPC rate limit reached (HTTP 429). Switch to a custom RPC endpoint, or wait a moment and retry.';
         }
-        return `Could not reach the RPC endpoint${Number.isFinite(status) ? ` (HTTP ${status})` : ''}. Check your network or cluster.`;
+        return `Could not reach the RPC endpoint (HTTP ${status}). Check your network or cluster.`;
     }
 
-    if (code === JSON_RPC_PREFLIGHT_FAILURE) {
-        const logs = recentLogs(context);
+    if (isSolanaError(error, SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE)) {
+        const logs = recentLogs(errorContext(error));
         return logs ? `Transaction simulation failed: ${logs}` : 'Transaction simulation failed before sending.';
     }
 
