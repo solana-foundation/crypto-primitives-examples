@@ -1,12 +1,15 @@
+import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { ArrowRight, Info } from 'lucide-react';
+import { ArrowRight, ChevronRight, Info } from 'lucide-react';
 
 import { PairingTerm, SyscallTerm } from '@/components/glossary-term';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface PrimitiveRow {
     encoding: string;
+    example: string;
     featureKey: string;
     kind: string;
     name: string;
@@ -16,6 +19,7 @@ interface PrimitiveRow {
     simdUrl: string;
     status: string;
     to?: string;
+    uses: string[];
 }
 
 const SIMD_BASE = 'https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/';
@@ -53,6 +57,7 @@ function useFeatureGates() {
 const ROWS: PrimitiveRow[] = [
     {
         encoding: 'BE / LE',
+        example: 'Prove a whole group signed a message with one signature and one on-chain check.',
         featureKey: 'bn1hKNURMGQaQoEVxahcEAcqiX3NwRs6hgKKNSLeKxH',
         kind: 'Syscall',
         name: 'BN254 pairing curve',
@@ -62,9 +67,14 @@ const ROWS: PrimitiveRow[] = [
         simdUrl: `${SIMD_BASE}0302-bn254-g2-syscalls.md`,
         status: 'mainnet',
         to: '/altbn128',
+        uses: [
+            'BLS multisigs — any number of members, one 64-byte signature, one on-chain check',
+            'Oracle & bridge committees — one aggregate attestation instead of N signatures',
+        ],
     },
     {
         encoding: 'Zcash BE',
+        example: 'Keep one combined group key on-chain and add or remove members anytime.',
         featureKey: 'b1sgUiJ3qu7hYm3tNDyyqZNQd6gLGJmJppnLNa93PCQ',
         kind: 'Syscall',
         name: 'BLS12-381 signature curve',
@@ -74,9 +84,11 @@ const ROWS: PrimitiveRow[] = [
         simdUrl: `${SIMD_BASE}0388-bls12-381-syscalls.md`,
         status: 'devnet',
         to: '/bls12381',
+        uses: ['Aggregate-key registries — members join or leave; the stored key stays one 192-byte point'],
     },
     {
         encoding: 'twisted ElGamal',
+        example: 'Prove a fact about an encrypted value without revealing the value.',
         featureKey: 'zkhiy5oLowR7HY4zogXjCjeMXyruLqBwSWH21qcFtnv',
         kind: 'Native program',
         name: 'Zero Knowledge ElGamal proofs',
@@ -86,6 +98,10 @@ const ROWS: PrimitiveRow[] = [
         simdUrl: `${SIMD_BASE}0153-elgamal-proof-program.md`,
         status: 'mainnet',
         to: '/elgamal',
+        uses: [
+            'Confidential transfers — Token-2022 hides amounts while the chain validates them',
+            'Encrypted-balance apps — prove statements about encrypted values without decrypting',
+        ],
     },
 ];
 
@@ -104,6 +120,7 @@ function renderPrimitiveName(name: string) {
 
 export function Overview() {
     const { data: featureGates } = useFeatureGates();
+    const [expanded, setExpanded] = useState<string | null>(null);
     return (
         <div className="space-y-12">
             <section className="hero-entrance max-w-3xl space-y-4">
@@ -167,43 +184,77 @@ export function Overview() {
                         </tr>
                     </thead>
                     <tbody>
-                        {ROWS.map(row => (
-                            <tr className="border-b last:border-b-0" key={row.name}>
-                                <td className="px-4 py-3 font-medium text-foreground">
-                                    {renderPrimitiveName(row.name)}
-                                </td>
-                                <td className="px-4 py-3 font-berkeley-mono text-xs">
-                                    <a
-                                        className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                        href={row.simdUrl}
-                                        rel="noopener noreferrer"
-                                        target="_blank"
-                                    >
-                                        {row.simd}
-                                    </a>
-                                </td>
-                                <td className="px-4 py-3 text-muted-foreground">
-                                    {row.kind === 'Syscall' ? <SyscallTerm>{row.kind}</SyscallTerm> : row.kind}
-                                </td>
-                                <td className="px-4 py-3 text-muted-foreground">{row.ops}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{row.security}</td>
-                                <td className="px-4 py-3 text-muted-foreground">
-                                    {activationStatus(featureGates?.find(f => f.key === row.featureKey)) ?? row.status}
-                                </td>
-                                <td className="px-4 py-3">
-                                    {row.to ? (
-                                        <Link
-                                            className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-                                            to={row.to}
-                                        >
-                                            Demo <ArrowRight className="h-3.5 w-3.5" />
-                                        </Link>
-                                    ) : (
-                                        <span className="text-xs text-sand-900">soon</span>
+                        {ROWS.map(row => {
+                            const isOpen = expanded === row.name;
+                            return (
+                                <Fragment key={row.name}>
+                                    <tr className={cn(!isOpen && 'border-b last:border-b-0')}>
+                                        <td className="px-4 py-3 font-medium text-foreground">
+                                            <button
+                                                aria-controls={`detail-${row.simd}`}
+                                                aria-expanded={isOpen}
+                                                className="inline-flex items-center gap-1.5 text-left hover:text-foreground"
+                                                onClick={() => setExpanded(isOpen ? null : row.name)}
+                                                type="button"
+                                            >
+                                                <ChevronRight
+                                                    className={cn(
+                                                        'size-3.5 shrink-0 text-sand-900 transition-transform',
+                                                        isOpen && 'rotate-90',
+                                                    )}
+                                                />
+                                                {renderPrimitiveName(row.name)}
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-3 font-berkeley-mono text-xs">
+                                            <a
+                                                className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                                                href={row.simdUrl}
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {row.simd}
+                                            </a>
+                                        </td>
+                                        <td className="px-4 py-3 text-muted-foreground">
+                                            {row.kind === 'Syscall' ? <SyscallTerm>{row.kind}</SyscallTerm> : row.kind}
+                                        </td>
+                                        <td className="px-4 py-3 text-muted-foreground">{row.ops}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{row.security}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">
+                                            {activationStatus(featureGates?.find(f => f.key === row.featureKey)) ??
+                                                row.status}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {row.to ? (
+                                                <Link
+                                                    className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
+                                                    to={row.to}
+                                                >
+                                                    Demo <ArrowRight className="h-3.5 w-3.5" />
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-sand-900">soon</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                    {isOpen && (
+                                        <tr className="border-b last:border-b-0" id={`detail-${row.simd}`}>
+                                            <td className="px-4 pt-0 pb-4" colSpan={7}>
+                                                <div className="space-y-2 pl-5 text-sm">
+                                                    <p className="text-foreground">{row.example}</p>
+                                                    <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                                                        {row.uses.map(use => (
+                                                            <li key={use}>{use}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     )}
-                                </td>
-                            </tr>
-                        ))}
+                                </Fragment>
+                            );
+                        })}
                     </tbody>
                 </table>
             </section>
