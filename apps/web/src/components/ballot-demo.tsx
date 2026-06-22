@@ -440,9 +440,7 @@ export function BallotDemo() {
                                     </button>
                                 ))}
                             </div>
-                            <Button onClick={castBallots} variant="secondary">
-                                Cast encrypted ballots
-                            </Button>
+                            <Button onClick={castBallots}>Cast encrypted ballots</Button>
                             {generated && (
                                 <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
                                     <div className="text-sand-1100">

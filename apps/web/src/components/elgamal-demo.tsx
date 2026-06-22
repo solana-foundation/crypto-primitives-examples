@@ -399,9 +399,7 @@ export function ElGamalDemo() {
                                         value={claim}
                                     />
                                 </label>
-                                <Button onClick={generate} variant="secondary">
-                                    Encrypt &amp; generate proof
-                                </Button>
+                                <Button onClick={generate}>Encrypt &amp; generate proof</Button>
                             </div>
                             {generated && (
                                 <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
