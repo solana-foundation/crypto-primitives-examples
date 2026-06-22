@@ -11,7 +11,8 @@ import {
 } from '@solana/kit';
 
 import { useDemoWalletFunding } from '@/components/demo-funding';
-import { RegistryFlow } from '@/components/registry-flow';
+import { Connector, FlowDiagram, Stage, type StageState } from '@/components/flow-diagram';
+import { BlsTerm } from '@/components/glossary-term';
 import { useWalletTransactionSignAndSend } from '@/components/solana/use-wallet-transaction-sign-and-send';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
@@ -244,10 +245,52 @@ export function BlsRegistryDemo() {
     const inCount = rows.filter(r => r.in).length;
     const cluster = getClusterFromClusterId(clusterId);
 
+    const stage1: StageState = rows.length === 0 || busy === 'add' ? 'active' : 'done';
+    const stage2: StageState = busy === 'add' || busy?.startsWith('in-') ? 'active' : registry ? 'done' : 'idle';
+    const stage3: StageState =
+        busy === 'verify'
+            ? 'active'
+            : result
+              ? result.ok
+                  ? 'pass'
+                  : 'fail'
+              : registry && rows.length > 0
+                ? 'done'
+                : 'idle';
+
+    const resultPanel = result && (
+        <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+                {result.ok ? <Badge variant="success">Verified</Badge> : <Badge variant="danger">Rejected</Badge>}
+                <span className="text-sand-1100">
+                    {result.signerCount} signed · on-chain set has {result.memberCount}
+                </span>
+            </div>
+            <div>
+                <span className="text-xs font-medium text-sand-1100">on-chain aggregate key</span>
+                <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">{result.aggregateKey}</p>
+            </div>
+            {result.signerAggregateKey && (
+                <div>
+                    <span className="text-xs font-medium text-sand-1100">
+                        aggregate key calculated off-chain from the signers
+                    </span>
+                    <p
+                        className={
+                            'mt-1 font-berkeley-mono text-xs break-all ' +
+                            (result.signerAggregateKey === result.aggregateKey ? 'text-foreground' : 'text-destructive')
+                        }
+                    >
+                        {result.signerAggregateKey}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className="space-y-5">
-            <RegistryFlow busy={busy} hasRegistry={registry !== null} memberCount={inCount} result={result} />
-            <div className="space-y-5 rounded-xl border bg-card p-5">
+            <FlowDiagram>
                 <div>
                     <h3 className="text-base font-semibold text-foreground">
                         Aggregate-key registry: members join and leave
@@ -272,136 +315,151 @@ export function BlsRegistryDemo() {
                     </ol>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <Button disabled={!wallet} loading={busy === 'add'} onClick={() => void addMember()}>
-                        Add member
-                    </Button>
-                    <Button
-                        disabled={!registry || rows.length === 0}
-                        loading={busy === 'verify'}
-                        onClick={() => void verify()}
-                        variant="secondary"
-                    >
-                        Verify signatures
-                    </Button>
-                </div>
-
-                {registry && (
-                    <div className="space-y-1 text-xs font-medium text-sand-1100">
-                        <div>
-                            registry{' '}
-                            <a
-                                className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                href={getSolanaExplorerAddressUrl(registry, cluster)}
-                                rel="noopener noreferrer"
-                                target="_blank"
-                            >
-                                {ellipsify(registry, 4)}
-                            </a>
-                        </div>
-                        <div>
-                            {inCount} active / {rows.length} total
-                        </div>
-                        {lastOp && lastOp.computeUnits != null && (
-                            <div>
-                                last op {lastOp.label} ·{' '}
-                                <span className="font-medium text-foreground">
-                                    {lastOp.computeUnits.toLocaleString()}
-                                </span>{' '}
-                                CU ·{' '}
-                                <a
-                                    className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                    href={getSolanaExplorerUrl(lastOp.signature, cluster)}
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                >
-                                    view tx
-                                </a>
-                            </div>
-                        )}
-                        <div>click a member to toggle whether they sign · × removes a member (G2 subtract)</div>
-                    </div>
-                )}
-
-                {rows.length > 0 && (
-                    <div className="grid max-h-48 grid-cols-5 gap-1 overflow-y-auto rounded-lg border bg-background p-2">
-                        {rows.map(row => (
-                            <div className="flex overflow-hidden rounded" key={row.id} title={row.pubkey}>
-                                <button
-                                    className={
-                                        'flex-1 px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-colors disabled:cursor-default ' +
-                                        (row.in && row.sign
-                                            ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
-                                            : 'bg-sand-200 text-sand-1000') +
-                                        (row.in ? '' : ' line-through opacity-50')
-                                    }
-                                    disabled={!row.in || busy !== null}
-                                    onClick={() => toggleSign(row.id)}
-                                    type="button"
-                                >
-                                    {row.in && row.sign ? '✓ ' : ''}#{row.id + 1} {ellipsify(row.pubkey, 4)}
-                                </button>
-                                <button
-                                    aria-label={row.in ? 'Remove from registry' : 'Add back to registry'}
-                                    className="bg-sand-300 px-1.5 font-berkeley-mono text-[10px] text-sand-1100 transition-colors hover:bg-sand-400 disabled:cursor-default disabled:opacity-50"
-                                    disabled={busy !== null}
-                                    onClick={() => void toggleIn(row)}
-                                    type="button"
-                                >
-                                    {busy === `in-${row.id}` ? '…' : row.in ? '×' : '+'}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {error && (
-                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
-                        <Badge variant="danger">Error</Badge>
-                        <span className="break-words whitespace-pre-wrap">{error}</span>
-                    </div>
-                )}
-
-                {result && (
-                    <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                        <div className="flex flex-wrap items-center gap-3">
-                            {result.ok ? (
-                                <Badge variant="success">Verified</Badge>
-                            ) : (
-                                <Badge variant="danger">Rejected</Badge>
+                <Stage
+                    actions={
+                        <div className="space-y-3">
+                            <Button disabled={!wallet} loading={busy === 'add'} onClick={() => void addMember()}>
+                                Add member
+                            </Button>
+                            {rows.length > 0 && (
+                                <>
+                                    <div className="text-xs font-medium text-sand-1100">
+                                        click a member to toggle whether they sign · × removes a member (G2 subtract)
+                                    </div>
+                                    <div className="grid max-h-48 grid-cols-5 gap-1 overflow-y-auto rounded-lg border bg-background p-2">
+                                        {rows.map(row => (
+                                            <div
+                                                className="flex overflow-hidden rounded"
+                                                key={row.id}
+                                                title={row.pubkey}
+                                            >
+                                                <button
+                                                    className={
+                                                        'flex-1 px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-colors disabled:cursor-default ' +
+                                                        (row.in && row.sign
+                                                            ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
+                                                            : 'bg-sand-200 text-sand-1000') +
+                                                        (row.in ? '' : ' line-through opacity-50')
+                                                    }
+                                                    disabled={!row.in || busy !== null}
+                                                    onClick={() => toggleSign(row.id)}
+                                                    type="button"
+                                                >
+                                                    {row.in && row.sign ? '✓ ' : ''}#{row.id + 1}{' '}
+                                                    {ellipsify(row.pubkey, 4)}
+                                                </button>
+                                                <button
+                                                    aria-label={
+                                                        row.in ? 'Remove from registry' : 'Add back to registry'
+                                                    }
+                                                    className="bg-sand-300 px-1.5 font-berkeley-mono text-[10px] text-sand-1100 transition-colors hover:bg-sand-400 disabled:cursor-default disabled:opacity-50"
+                                                    disabled={busy !== null}
+                                                    onClick={() => void toggleIn(row)}
+                                                    type="button"
+                                                >
+                                                    {busy === `in-${row.id}` ? '…' : row.in ? '×' : '+'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
                             )}
-                            <span className="text-sand-1100">
-                                {result.signerCount} signed · on-chain set has {result.memberCount}
-                            </span>
                         </div>
-                        <div>
-                            <span className="text-xs font-medium text-sand-1100">on-chain aggregate key</span>
-                            <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
-                                {result.aggregateKey}
-                            </p>
-                        </div>
-                        {result.signerAggregateKey && (
-                            <div>
-                                <span className="text-xs font-medium text-sand-1100">
-                                    aggregate key calculated off-chain from the signers
-                                </span>
-                                <p
-                                    className={
-                                        'mt-1 font-berkeley-mono text-xs break-all ' +
-                                        (result.signerAggregateKey === result.aggregateKey
-                                            ? 'text-foreground'
-                                            : 'text-destructive')
-                                    }
-                                >
-                                    {result.signerAggregateKey}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    }
+                    location="off-chain"
+                    n={1}
+                    state={stage1}
+                    title="Member keys"
+                >
+                    <BlsTerm>BLS</BlsTerm> keypairs in your browser — members join or leave anytime
+                </Stage>
 
-                {fundingDialog}
-            </div>
+                <Connector>join · G2 add · leave · G2 subtract</Connector>
+
+                <Stage
+                    actions={
+                        registry ? (
+                            <div className="space-y-1 text-xs font-medium text-sand-1100">
+                                <div>
+                                    registry{' '}
+                                    <a
+                                        className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                                        href={getSolanaExplorerAddressUrl(registry, cluster)}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {ellipsify(registry, 4)}
+                                    </a>
+                                </div>
+                                <div>
+                                    {inCount} active / {rows.length} total
+                                </div>
+                                {lastOp && lastOp.computeUnits != null && (
+                                    <div>
+                                        last op {lastOp.label} ·{' '}
+                                        <span className="font-medium text-foreground">
+                                            {lastOp.computeUnits.toLocaleString()}
+                                        </span>{' '}
+                                        CU ·{' '}
+                                        <a
+                                            className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                                            href={getSolanaExplorerUrl(lastOp.signature, cluster)}
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            view tx
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        ) : null
+                    }
+                    location="on-chain"
+                    n={2}
+                    state={stage2}
+                    title="One aggregate key"
+                >
+                    always a single stored key, no matter how big the set gets
+                </Stage>
+
+                <Connector>chosen signers' keys aggregated off-chain</Connector>
+                <Connector loop>add, remove, and verify in any order — repeat anytime</Connector>
+
+                <Stage
+                    actions={
+                        <div className="space-y-3">
+                            <Button
+                                disabled={!registry || rows.length === 0}
+                                loading={busy === 'verify'}
+                                onClick={() => void verify()}
+                                variant="secondary"
+                            >
+                                Verify signatures
+                            </Button>
+                            {resultPanel}
+                        </div>
+                    }
+                    location="off-chain"
+                    n={3}
+                    state={stage3}
+                    title="Verify"
+                >
+                    {result
+                        ? result.ok
+                            ? '✓ signer set matches the registry'
+                            : "✗ signers don't match the stored key"
+                        : "signers' aggregate vs the stored key (verified off-chain)"}
+                </Stage>
+            </FlowDiagram>
+
+            {error && (
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                    <Badge variant="danger">Error</Badge>
+                    <span className="break-words whitespace-pre-wrap">{error}</span>
+                </div>
+            )}
+
+            {fundingDialog}
         </div>
     );
 }

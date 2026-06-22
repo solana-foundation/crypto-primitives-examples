@@ -1,4 +1,5 @@
 pub mod altbn128_g2;
+pub mod ballot;
 pub mod bls12_381;
 pub mod bls254_aggregate;
 pub mod bls_registry;
@@ -8,6 +9,7 @@ pub mod multisig;
 pub mod noop;
 
 pub use altbn128_g2::*;
+pub use ballot::*;
 pub use bls12_381::*;
 pub use bls254_aggregate::*;
 pub use bls_registry::*;
@@ -35,6 +37,7 @@ pub enum CryptoPrimitivesInstructionDiscriminators {
     MultisigVerify = 11,
     BlsRegistryAdd = 12,
     BlsRegistryRemove = 13,
+    BallotTallyAdd = 14,
 }
 
 impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
@@ -56,6 +59,7 @@ impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
             11 => Ok(Self::MultisigVerify),
             12 => Ok(Self::BlsRegistryAdd),
             13 => Ok(Self::BlsRegistryRemove),
+            14 => Ok(Self::BallotTallyAdd),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

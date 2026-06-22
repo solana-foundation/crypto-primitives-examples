@@ -1,11 +1,12 @@
 use pinocchio::{account::AccountView, entrypoint, error::ProgramError, Address, ProgramResult};
 
 use crate::instructions::{
-    process_altbn128_g2_add, process_altbn128_g2_mul, process_bls12_381_g1_add,
-    process_bls12_381_g1_mul, process_bls12_381_g1_sub, process_bls12_381_g2_add,
-    process_bls12_381_g2_mul, process_bls12_381_g2_sub, process_bls254_aggregate_verify,
-    process_bls_registry_add, process_bls_registry_remove, process_multisig_add_signers,
-    process_multisig_verify, process_noop, CryptoPrimitivesInstructionDiscriminators,
+    process_altbn128_g2_add, process_altbn128_g2_mul, process_ballot_tally_add,
+    process_bls12_381_g1_add, process_bls12_381_g1_mul, process_bls12_381_g1_sub,
+    process_bls12_381_g2_add, process_bls12_381_g2_mul, process_bls12_381_g2_sub,
+    process_bls254_aggregate_verify, process_bls_registry_add, process_bls_registry_remove,
+    process_multisig_add_signers, process_multisig_verify, process_noop,
+    CryptoPrimitivesInstructionDiscriminators,
 };
 
 entrypoint!(process_instruction);
@@ -63,6 +64,9 @@ pub fn process_instruction(
         }
         CryptoPrimitivesInstructionDiscriminators::BlsRegistryRemove => {
             process_bls_registry_remove(program_id, accounts, instruction_data)
+        }
+        CryptoPrimitivesInstructionDiscriminators::BallotTallyAdd => {
+            process_ballot_tally_add(program_id, accounts, instruction_data)
         }
     }
 }

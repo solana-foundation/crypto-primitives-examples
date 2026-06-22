@@ -46,6 +46,12 @@
         "kind": "errorNode",
         "message": "Multisig account does not have capacity for more signers",
         "name": "multisigFull"
+      },
+      {
+        "code": 7,
+        "kind": "errorNode",
+        "message": "Ballot tally account is not owned by this program, not writable, or too small",
+        "name": "invalidBallotAccount"
       }
     ],
     "instructions": [
@@ -690,6 +696,57 @@
         ],
         "kind": "instructionNode",
         "name": "blsRegistryRemove"
+      },
+      {
+        "accounts": [
+          {
+            "isSigner": false,
+            "isWritable": true,
+            "kind": "instructionAccountNode",
+            "name": "tally"
+          }
+        ],
+        "arguments": [
+          {
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 14
+            },
+            "defaultValueStrategy": "omitted",
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "type": {
+              "endian": "le",
+              "format": "u8",
+              "kind": "numberTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "ballot",
+            "type": {
+              "count": {
+                "kind": "fixedCountNode",
+                "value": 64
+              },
+              "item": {
+                "endian": "le",
+                "format": "u8",
+                "kind": "numberTypeNode"
+              },
+              "kind": "arrayTypeNode"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ],
+        "kind": "instructionNode",
+        "name": "ballotTallyAdd"
       }
     ],
     "kind": "programNode",

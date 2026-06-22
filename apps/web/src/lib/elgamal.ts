@@ -13,16 +13,14 @@ function scalarMulBase(k: bigint) {
     return k > 0n ? Point.BASE.multiply(k) : Point.BASE.multiply(-k).negate();
 }
 
-/**
- * Homomorphically rewrites a twisted ElGamal ciphertext so that proving the
- * result is non-negative (or zero) proves the claimed comparison against the
- * original:
- *
- * - eq: C − claim·G encrypts (value − claim), zero iff value == claim
- * - gt: C − (claim+1)·G encrypts (value − claim − 1), in u64 range iff value > claim
- * - lt: (claim−1)·G − C encrypts (claim − value − 1), in u64 range iff value < claim;
- *   the whole ciphertext is negated, so the decrypt handle flips sign too
- */
+export const BALLOT_TALLY_ADD_DISCRIMINATOR = 14;
+export const BALLOT_TALLY_ACCOUNT_SIZE = 2 + 64;
+
+/** Instruction data to fold one 64-byte ballot ciphertext into the on-chain tally. */
+export function ballotTallyAddInstructionData(ciphertext: Uint8Array): Uint8Array {
+    return new Uint8Array([BALLOT_TALLY_ADD_DISCRIMINATOR, ...ciphertext]);
+}
+
 /** Adds twisted ElGamal ciphertexts component-wise; the sum encrypts the sum of the amounts. */
 export function sumCiphertexts(ciphertexts: Uint8Array[]): Uint8Array {
     const commitment = ciphertexts.map(ct => Point.fromBytes(ct.subarray(0, 32))).reduce((a, b) => a.add(b));
@@ -57,6 +55,16 @@ export function decryptSmallAmount(secretKey: Uint8Array, ciphertext: Uint8Array
     return null;
 }
 
+/**
+ * Homomorphically rewrites a twisted ElGamal ciphertext so that proving the
+ * result is non-negative (or zero) proves the claimed comparison against the
+ * original:
+ *
+ * - eq: C − claim·G encrypts (value − claim), zero iff value == claim
+ * - gt: C − (claim+1)·G encrypts (value − claim − 1), in u64 range iff value > claim
+ * - lt: (claim−1)·G − C encrypts (claim − value − 1), in u64 range iff value < claim;
+ *   the whole ciphertext is negated, so the decrypt handle flips sign too
+ */
 export function shiftCiphertextForClaim(ciphertext: Uint8Array, claim: bigint, op: ComparisonOp): Uint8Array {
     const commitment = Point.fromBytes(ciphertext.subarray(0, 32));
     const handle = Point.fromBytes(ciphertext.subarray(32, 64));

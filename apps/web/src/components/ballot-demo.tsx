@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import { Badge, Button } from '@solana/design-system';
 import { verifyBatchedRangeProofU64 } from '@solana-program/zk-elgamal-proof';
-import type { KeyPairSigner, Signature } from '@solana/kit';
+import {
+    AccountRole,
+    type Address,
+    generateKeyPairSigner,
+    type Instruction,
+    type KeyPairSigner,
+    type Signature,
+} from '@solana/kit';
 import { BatchedRangeProofU64Data, ElGamalKeypair, PedersenCommitment, PedersenOpening } from '@solana/zk-sdk/bundler';
 
 import { useDemoWalletFunding } from '@/components/demo-funding';
@@ -9,21 +17,29 @@ import {
     OnChainTransactionError,
     useWalletTransactionSignAndSend,
 } from '@/components/solana/use-wallet-transaction-sign-and-send';
-import { ZkProofFlow } from '@/components/zk-proof-flow';
+import { Connector, FlowDiagram, Stage, type StageState } from '@/components/flow-diagram';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
 import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/demo-wallet';
-import { decryptSmallAmount, sumCiphertexts } from '@/lib/elgamal';
-import { getClusterFromClusterId, getSolanaExplorerUrl } from '@/lib/explorer';
-import { bytesToHex } from '@/lib/hex';
+import {
+    BALLOT_TALLY_ACCOUNT_SIZE,
+    ballotTallyAddInstructionData,
+    decryptSmallAmount,
+    sumCiphertexts,
+} from '@/lib/elgamal';
+import { getClusterFromClusterId, getSolanaExplorerAddressUrl, getSolanaExplorerUrl } from '@/lib/explorer';
+import { base64ToBytes, bytesToHex, hexToBytes } from '@/lib/hex';
+import { getProgramAddress } from '@/lib/program';
 import { formatTransactionError } from '@/lib/transactionErrors';
 
 type Vote = 'no' | 'stuffed' | 'yes';
 
 interface Generated {
+    ballotCiphertexts: Uint8Array[];
     proofChunks: Uint8Array[];
     stuffedCount: number;
     tallyCiphertext: string;
+    tallySecret: Uint8Array;
     wouldBeTally: number | null;
     yesCount: number;
 }
@@ -56,6 +72,12 @@ export function BallotDemo() {
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<RunResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [tallyAccount, setTallyAccount] = useState<Address | null>(null);
+    const [tallyCipher, setTallyCipher] = useState<Uint8Array | null>(null);
+    const [tallyKeyInput, setTallyKeyInput] = useState('');
+    const [onChainTally, setOnChainTally] = useState<number | null>(null);
+    const [tallying, setTallying] = useState(false);
+    const [decrypting, setDecrypting] = useState(false);
 
     useEffect(() => {
         getDemoWallet()
@@ -63,16 +85,31 @@ export function BallotDemo() {
             .catch(() => undefined);
     }, []);
 
+    function resetTally() {
+        setOnChainTally(null);
+        setTallyAccount(null);
+        setTallyCipher(null);
+    }
+
+    function decryptTally(cipher: Uint8Array, keyHex: string): number | null {
+        const clean = keyHex.trim();
+        if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(clean)) return null;
+        return decryptSmallAmount(Uint8Array.from(hexToBytes(clean)), cipher, VOTER_COUNT * 2);
+    }
+
     function cycleVote(index: number) {
         setVotes(prev => prev.map((v, i) => (i === index ? VOTE_CYCLE[(VOTE_CYCLE.indexOf(v) + 1) % 3] : v)));
         setGenerated(null);
         setResult(null);
+        setTallyKeyInput('');
+        resetTally();
     }
 
     function castBallots() {
         setError(null);
         setResult(null);
         setGenerated(null);
+        resetTally();
         try {
             const tallyKeypair = new ElGamalKeypair();
             const amounts = votes.map(v => VOTE_AMOUNT[v]);
@@ -108,12 +145,15 @@ export function BallotDemo() {
             const wouldBeTally = decryptSmallAmount(tallyKeypair.secret().toBytes(), tallyCiphertext, VOTER_COUNT * 2);
 
             setGenerated({
+                ballotCiphertexts: ciphertexts.map(ct => ct.toBytes()),
                 proofChunks,
                 stuffedCount: votes.filter(v => v === 'stuffed').length,
                 tallyCiphertext: bytesToHex(tallyCiphertext),
+                tallySecret: tallyKeypair.secret().toBytes(),
                 wouldBeTally,
                 yesCount: votes.filter(v => v === 'yes').length,
             });
+            setTallyKeyInput(bytesToHex(tallyKeypair.secret().toBytes()));
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Ballot generation failed');
         }
@@ -159,168 +199,342 @@ export function BallotDemo() {
         }
     }
 
+    async function tallyOnChain() {
+        if (!wallet || !generated) return;
+        setTallying(true);
+        setError(null);
+        resetTally();
+        try {
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
+            const space = BigInt(BALLOT_TALLY_ACCOUNT_SIZE);
+            const lamports = await rpc.getMinimumBalanceForRentExemption(space).send();
+            const account = await generateKeyPairSigner();
+            await signAndSend(
+                [
+                    getCreateAccountInstruction({
+                        lamports,
+                        newAccount: account,
+                        payer: wallet,
+                        programAddress: getProgramAddress(),
+                        space,
+                    }),
+                ],
+                wallet,
+            );
+
+            for (const ballot of generated.ballotCiphertexts) {
+                const instruction: Instruction = {
+                    accounts: [{ address: account.address, role: AccountRole.WRITABLE }],
+                    data: ballotTallyAddInstructionData(ballot),
+                    programAddress: getProgramAddress(),
+                };
+                await signAndSend([instruction], wallet);
+            }
+
+            const info = await rpc.getAccountInfo(account.address, { encoding: 'base64' }).send();
+            if (!info.value) throw new Error('Tally account not found — try again in a moment');
+            const tallyCiphertext = base64ToBytes(info.value.data[0]).slice(2, 2 + 64);
+            setTallyAccount(account.address);
+            setTallyCipher(tallyCiphertext);
+            setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
+        } catch (caught) {
+            if (caught instanceof InsufficientDemoFundsError) {
+                requestFunding({ address: caught.address, onFunded: () => void tallyOnChain() });
+                return;
+            }
+            setError(formatTransactionError(caught));
+        } finally {
+            setTallying(false);
+        }
+    }
+
+    async function decryptFromChain() {
+        if (!tallyAccount) return;
+        setDecrypting(true);
+        setError(null);
+        try {
+            const info = await rpc.getAccountInfo(tallyAccount, { encoding: 'base64' }).send();
+            if (!info.value) throw new Error('Tally account not found — try again in a moment');
+            const tallyCiphertext = base64ToBytes(info.value.data[0]).slice(2, 2 + 64);
+            setTallyCipher(tallyCiphertext);
+            setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
+        } catch (caught) {
+            setError(formatTransactionError(caught));
+        } finally {
+            setDecrypting(false);
+        }
+    }
+
     const cluster = getClusterFromClusterId(clusterId);
+
+    const stage1: StageState = generated ? 'done' : 'active';
+    const stage2: StageState = running
+        ? 'active'
+        : result
+          ? result.ok
+              ? 'pass'
+              : 'fail'
+          : generated
+            ? 'active'
+            : 'idle';
+    const stage3: StageState = tallying ? 'active' : onChainTally != null ? 'done' : result ? 'active' : 'idle';
+
+    const proofPanel = result && generated && (
+        <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+                {result.ok ? (
+                    <>
+                        <Badge variant="success">All ballots valid</Badge>
+                        <span className="text-sand-1100">
+                            would tally{' '}
+                            <span className="font-medium text-foreground">
+                                {generated.wouldBeTally ?? '?'} yes /{' '}
+                                {generated.wouldBeTally != null ? VOTER_COUNT - generated.wouldBeTally : '?'} no
+                            </span>{' '}
+                            — and no individual ballot was ever opened
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <Badge variant="danger">Ballot stuffing caught</Badge>
+                        <span className="text-sand-1100">
+                            the proof can't show a 2 fits in one bit — without it, the tally would have read{' '}
+                            <span className="font-medium text-foreground">{generated.wouldBeTally ?? '?'}</span> yes
+                            from {generated.yesCount + generated.stuffedCount} actual yes-voters
+                        </span>
+                    </>
+                )}
+            </div>
+            <div className="space-y-1">
+                {result.checks.map((check, i) => (
+                    <div className="flex flex-wrap items-center gap-2 text-xs" key={i}>
+                        <Badge variant={check.ok ? 'success' : 'danger'}>{check.ok ? 'passed' : 'rejected'}</Badge>
+                        <span className="text-sand-1100">
+                            proof {i + 1} — ballots {i * CHUNK_SIZE + 1}–{Math.min((i + 1) * CHUNK_SIZE, VOTER_COUNT)}
+                        </span>
+                        {check.computeUnits != null && (
+                            <span className="text-sand-1100">
+                                ·{' '}
+                                <span className="font-medium text-foreground">
+                                    {check.computeUnits.toLocaleString()}
+                                </span>{' '}
+                                CU
+                            </span>
+                        )}
+                        <a
+                            className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                            href={getSolanaExplorerUrl(check.signature, cluster)}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            view tx
+                        </a>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const tallyPanel = tallyCipher && (
+        <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+            <label className="block">
+                <span className="text-xs font-medium text-sand-1100">
+                    ElGamal tally key — only this secret can read the on-chain sum. Edit it and decrypt again to watch
+                    it fail.
+                </span>
+                <input
+                    className="mt-1 block w-full rounded-lg border border-input bg-background px-2 py-1 font-berkeley-mono text-xs text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    onChange={e => setTallyKeyInput(e.target.value)}
+                    spellCheck={false}
+                    value={tallyKeyInput}
+                />
+            </label>
+            <Button loading={decrypting} onClick={() => void decryptFromChain()} size="sm" variant="secondary">
+                Fetch &amp; decrypt the on-chain tally
+            </Button>
+            {onChainTally != null ? (
+                <>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge variant="success">Decrypted</Badge>
+                        <span className="text-sand-1100">
+                            from the on-chain sum only:{' '}
+                            <span className="font-medium text-foreground">{onChainTally}</span>
+                            {generated?.stuffedCount === 0 && ` yes / ${VOTER_COUNT - onChainTally} no`}
+                        </span>
+                        {tallyAccount && (
+                            <Button asChild size="sm" variant="secondary">
+                                <a
+                                    href={getSolanaExplorerAddressUrl(tallyAccount, cluster)}
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    View account
+                                </a>
+                            </Button>
+                        )}
+                    </div>
+                    {generated && generated.stuffedCount > 0 && (
+                        <div className="text-destructive">
+                            this total is inflated — the tally instruction sums ballots blindly, so{' '}
+                            {generated.stuffedCount} stuffed ballot{generated.stuffedCount > 1 ? 's' : ''} added 2 each.
+                            Only the validity proof rejects them.
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="danger">Can't decrypt</Badge>
+                    <span className="text-sand-1100">
+                        this key doesn't match the ballots — the encrypted sum stays unreadable
+                    </span>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <div className="space-y-5">
-            <ZkProofFlow
-                encryptLabel="10 ballots, each encrypted as 0 or 1"
-                failLabel="✗ a stuffed ballot can't be proven — rejected"
-                passLabel="✓ every ballot is a valid 0 or 1"
-                prepared={generated !== null}
-                result={result}
-                running={running}
-            />
-            <div className="rounded-xl border bg-card p-5">
-                <h3 className="text-base font-semibold text-foreground">Private ballot: secret votes, public tally</h3>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                    <li>
-                        Each voter encrypts a 0 (no) or 1 (yes) in the browser — individual ballots are never revealed,
-                        not even to count them.
-                    </li>
-                    <li>
-                        Batched proofs show every ballot is a valid 0-or-1 on-chain ({VOTER_COUNT} voters span two
-                        proofs, since one tops out at {CHUNK_SIZE + 3} commitments). A stuffed ballot (a sneaky 2, worth
-                        two votes) can't be proven — the demo forges it and the chain catches it.
-                    </li>
-                    <li>
-                        The encrypted ballots are added together while still encrypted; only the total is ever
-                        decrypted.
-                    </li>
-                </ol>
-
-                <div className="mt-4 text-xs font-medium text-sand-1100">
-                    click a voter to cycle their ballot: yes → no → stuffed (counts as 2)
-                </div>
-                <div className="mt-2 grid grid-cols-5 gap-1 rounded-lg border bg-background p-2">
-                    {votes.map((vote, i) => (
-                        <button
-                            className={
-                                'rounded px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-colors ' +
-                                (vote === 'yes'
-                                    ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
-                                    : vote === 'no'
-                                      ? 'bg-sand-200 text-sand-1000'
-                                      : 'bg-destructive/10 text-destructive')
-                            }
-                            key={i}
-                            onClick={() => cycleVote(i)}
-                            type="button"
-                        >
-                            #{i + 1} {vote === 'yes' ? '✓ yes' : vote === 'no' ? '✗ no' : '‼ 2'}
-                        </button>
-                    ))}
+            <FlowDiagram>
+                <div>
+                    <h3 className="text-base font-semibold text-foreground">
+                        Private ballot: secret votes, public tally
+                    </h3>
+                    <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                        <li>
+                            Each voter encrypts a 0 (no) or 1 (yes) in the browser — individual ballots are never
+                            revealed, not even to count them.
+                        </li>
+                        <li>
+                            Batched proofs show every ballot is a valid 0-or-1 on-chain ({VOTER_COUNT} voters span two
+                            proofs, since one tops out at {CHUNK_SIZE + 3} commitments). A stuffed ballot (a sneaky 2,
+                            worth two votes) can't be proven — the demo forges it and the chain catches it.
+                        </li>
+                        <li>
+                            The encrypted ballots are added together on-chain while still encrypted; only the total is
+                            ever decrypted.
+                        </li>
+                    </ol>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <Button onClick={castBallots} variant="secondary">
-                        Cast encrypted ballots
-                    </Button>
-                    <Button
-                        disabled={running || !wallet || !generated}
-                        loading={running}
-                        onClick={() => void verifyOnChain()}
-                    >
-                        Prove all ballots valid on-chain
-                    </Button>
-                </div>
-
-                {generated && (
-                    <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                        <div className="text-sand-1100">
-                            {VOTER_COUNT} encrypted ballots · {generated.proofChunks.length} batched proofs cover all of
-                            them
-                        </div>
-                        <div>
-                            <span className="text-xs font-medium text-sand-1100">
-                                encrypted tally (sum of all ballots, still encrypted)
-                            </span>
-                            <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
-                                {generated.tallyCiphertext}
-                            </p>
-                        </div>
-                        {generated.stuffedCount > 0 && (
-                            <div className="text-destructive">
-                                {generated.stuffedCount} stuffed ballot{generated.stuffedCount > 1 ? 's' : ''} in the
-                                mix — watch the proof fail
+                <Stage
+                    actions={
+                        <div className="space-y-3">
+                            <div className="text-xs font-medium text-sand-1100">
+                                click a voter to cycle their ballot: yes → no → stuffed (counts as 2)
                             </div>
-                        )}
-                    </div>
-                )}
-
-                {error && (
-                    <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
-                        <Badge variant="danger">Failed</Badge>
-                        <span className="break-words whitespace-pre-wrap">{error}</span>
-                    </div>
-                )}
-
-                {result && generated && (
-                    <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-                        <div className="flex flex-wrap items-center gap-3">
-                            {result.ok ? (
-                                <>
-                                    <Badge variant="success">All ballots valid</Badge>
-                                    <span className="text-sand-1100">
-                                        tally:{' '}
-                                        <span className="font-medium text-foreground">
-                                            {generated.wouldBeTally ?? '?'} yes /{' '}
-                                            {generated.wouldBeTally != null
-                                                ? VOTER_COUNT - generated.wouldBeTally
-                                                : '?'}{' '}
-                                            no
-                                        </span>{' '}
-                                        — decrypted from the sum only; no individual ballot was ever opened
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <Badge variant="danger">Ballot stuffing caught</Badge>
-                                    <span className="text-sand-1100">
-                                        the proof can't show a 2 fits in one bit — without it, the tally would have read{' '}
-                                        <span className="font-medium text-foreground">
-                                            {generated.wouldBeTally ?? '?'}
-                                        </span>{' '}
-                                        yes from {generated.yesCount + generated.stuffedCount} actual yes-voters
-                                    </span>
-                                </>
+                            <div className="grid grid-cols-5 gap-1 rounded-lg border bg-background p-2">
+                                {votes.map((vote, i) => (
+                                    <button
+                                        className={
+                                            'rounded px-1.5 py-0.5 text-center font-berkeley-mono text-[10px] transition-colors ' +
+                                            (vote === 'yes'
+                                                ? 'bg-[var(--badge-success-bg)] text-[var(--badge-success-text)]'
+                                                : vote === 'no'
+                                                  ? 'bg-sand-200 text-sand-1000'
+                                                  : 'bg-destructive/10 text-destructive')
+                                        }
+                                        key={i}
+                                        onClick={() => cycleVote(i)}
+                                        type="button"
+                                    >
+                                        #{i + 1} {vote === 'yes' ? '✓ yes' : vote === 'no' ? '✗ no' : '‼ 2'}
+                                    </button>
+                                ))}
+                            </div>
+                            {!generated && <Button onClick={castBallots}>Cast encrypted ballots</Button>}
+                            {generated && (
+                                <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+                                    <div className="text-sand-1100">
+                                        {VOTER_COUNT} encrypted ballots · {generated.proofChunks.length} batched proofs
+                                        cover all of them
+                                    </div>
+                                    <div>
+                                        <span className="text-xs font-medium text-sand-1100">
+                                            encrypted tally (sum of all ballots, still encrypted)
+                                        </span>
+                                        <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">
+                                            {generated.tallyCiphertext}
+                                        </p>
+                                    </div>
+                                    {generated.stuffedCount > 0 && (
+                                        <div className="text-destructive">
+                                            {generated.stuffedCount} stuffed ballot
+                                            {generated.stuffedCount > 1 ? 's' : ''} in the mix — watch the proof fail
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
-                        <div className="space-y-1">
-                            {result.checks.map((check, i) => (
-                                <div className="flex flex-wrap items-center gap-2 text-xs" key={i}>
-                                    <Badge variant={check.ok ? 'success' : 'danger'}>
-                                        {check.ok ? 'passed' : 'rejected'}
-                                    </Badge>
-                                    <span className="text-sand-1100">
-                                        proof {i + 1} — ballots {i * CHUNK_SIZE + 1}–
-                                        {Math.min((i + 1) * CHUNK_SIZE, VOTER_COUNT)}
-                                    </span>
-                                    {check.computeUnits != null && (
-                                        <span className="text-sand-1100">
-                                            ·{' '}
-                                            <span className="font-medium text-foreground">
-                                                {check.computeUnits.toLocaleString()}
-                                            </span>{' '}
-                                            CU
-                                        </span>
-                                    )}
-                                    <a
-                                        className="text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                        href={getSolanaExplorerUrl(check.signature, cluster)}
-                                        rel="noopener noreferrer"
-                                        target="_blank"
-                                    >
-                                        view tx
-                                    </a>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                    }
+                    location="off-chain"
+                    n={1}
+                    state={stage1}
+                    title="Encrypt in your browser"
+                >
+                    each ballot encrypted as 0 or 1 — the individual votes never leave your browser
+                </Stage>
 
-                {fundingDialog}
-            </div>
+                <Connector>batched range proof: every ballot is a valid 0 or 1</Connector>
+
+                <Stage
+                    actions={
+                        <div className="space-y-3">
+                            <Button
+                                disabled={running || !wallet || !generated}
+                                loading={running}
+                                onClick={() => void verifyOnChain()}
+                            >
+                                Prove all ballots valid on-chain
+                            </Button>
+                            {proofPanel}
+                        </div>
+                    }
+                    location="on-chain"
+                    n={2}
+                    state={stage2}
+                    title="Prove valid on-chain"
+                >
+                    {result
+                        ? result.ok
+                            ? '✓ every ballot is a valid 0 or 1'
+                            : "✗ a stuffed ballot can't be proven — rejected"
+                        : "a stuffed ballot (a 2) can't be proven — the chain rejects it"}
+                </Stage>
+
+                <Connector>add the encrypted ballots together</Connector>
+
+                <Stage
+                    actions={
+                        <div className="space-y-3">
+                            <Button
+                                disabled={tallying || !wallet || !result}
+                                loading={tallying}
+                                onClick={() => void tallyOnChain()}
+                            >
+                                Store &amp; tally on-chain
+                            </Button>
+                            {tallyPanel}
+                        </div>
+                    }
+                    location="on-chain"
+                    n={3}
+                    state={stage3}
+                    title="Tally on-chain"
+                >
+                    {onChainTally != null
+                        ? '✓ summed on-chain, total decrypted — no individual ballot opened'
+                        : 'the encrypted ballots are summed on-chain; only the total is ever decrypted'}
+                </Stage>
+            </FlowDiagram>
+
+            {error && (
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                    <Badge variant="danger">Failed</Badge>
+                    <span className="break-words whitespace-pre-wrap">{error}</span>
+                </div>
+            )}
+
+            {fundingDialog}
         </div>
     );
 }

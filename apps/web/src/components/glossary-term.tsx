@@ -35,3 +35,10 @@ const HASH_DEFINITION =
 export function HashTerm({ children }: { children: ReactNode }) {
     return <GlossaryTerm definition={HASH_DEFINITION}>{children}</GlossaryTerm>;
 }
+
+const BLS_DEFINITION =
+    'A signature scheme where many public keys add into one key, and many signatures add into one signature — so a whole group verifies as cheaply as a single signer.';
+
+export function BlsTerm({ children }: { children: ReactNode }) {
+    return <GlossaryTerm definition={BLS_DEFINITION}>{children}</GlossaryTerm>;
+}
