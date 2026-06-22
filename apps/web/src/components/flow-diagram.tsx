@@ -13,22 +13,24 @@ const STAGE_STYLES: Record<StageState, string> = {
     pass: 'border-[var(--badge-success-bg)] bg-[var(--badge-success-bg)]/10',
 };
 
-export function FlowDiagram({ children, title }: { children: ReactNode; title: string }) {
+export function FlowDiagram({ children, title }: { children: ReactNode; title?: string }) {
     return (
         <div className="space-y-2 rounded-xl border bg-card p-4">
-            <h3 className="text-xs font-semibold tracking-wide text-sand-1100 uppercase">{title}</h3>
+            {title && <h3 className="text-xs font-semibold tracking-wide text-sand-1100 uppercase">{title}</h3>}
             {children}
         </div>
     );
 }
 
 export function Stage({
+    actions,
     children,
     location,
     n,
     state,
     title,
 }: {
+    actions?: ReactNode;
     children: ReactNode;
     location: string;
     n: number;
@@ -50,6 +52,7 @@ export function Stage({
                 <span className="text-[10px] tracking-wide text-sand-900 uppercase">{location}</span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">{children}</p>
+            {actions && <div className="mt-3">{actions}</div>}
         </div>
     );
 }
