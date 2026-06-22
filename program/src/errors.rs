@@ -28,6 +28,9 @@ pub enum CryptoPrimitivesProgramError {
     /// (6) Multisig account does not have capacity for more signers
     #[error("Multisig account does not have capacity for more signers")]
     MultisigFull,
+    /// (7) Ballot tally account is not owned by this program, not writable, or too small
+    #[error("Ballot tally account is not owned by this program, not writable, or too small")]
+    InvalidBallotAccount,
 }
 
 impl From<CryptoPrimitivesProgramError> for ProgramError {

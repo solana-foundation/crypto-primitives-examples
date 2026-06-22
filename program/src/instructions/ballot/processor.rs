@@ -20,7 +20,7 @@ fn tally_account<'a>(
 ) -> Result<&'a AccountView, ProgramError> {
     let account = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
     if !account.is_writable() || !account.owned_by(program_id) {
-        return Err(CryptoPrimitivesProgramError::InvalidMultisigAccount.into());
+        return Err(CryptoPrimitivesProgramError::InvalidBallotAccount.into());
     }
     if instruction_data.len() != CIPHERTEXT {
         return Err(CryptoPrimitivesProgramError::InvalidInputLength.into());
@@ -39,7 +39,7 @@ pub fn process_ballot_tally_add(
     let account = tally_account(program_id, accounts, instruction_data)?;
     let mut data = account.try_borrow_mut()?;
     if data.len() < COUNT_PREFIX + CIPHERTEXT {
-        return Err(CryptoPrimitivesProgramError::InvalidMultisigAccount.into());
+        return Err(CryptoPrimitivesProgramError::InvalidBallotAccount.into());
     }
 
     let count = ballot_count(&data);

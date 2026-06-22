@@ -46,6 +46,12 @@
         "kind": "errorNode",
         "message": "Multisig account does not have capacity for more signers",
         "name": "multisigFull"
+      },
+      {
+        "code": 7,
+        "kind": "errorNode",
+        "message": "Ballot tally account is not owned by this program, not writable, or too small",
+        "name": "invalidBallotAccount"
       }
     ],
     "instructions": [

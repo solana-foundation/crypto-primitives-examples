@@ -232,8 +232,8 @@ export function BallotDemo() {
             }
 
             const info = await rpc.getAccountInfo(account.address, { encoding: 'base64' }).send();
-            const data = base64ToBytes(info.value!.data[0]);
-            const tallyCiphertext = data.slice(2, 2 + 64);
+            if (!info.value) throw new Error('Tally account not found — try again in a moment');
+            const tallyCiphertext = base64ToBytes(info.value.data[0]).slice(2, 2 + 64);
             setTallyAccount(account.address);
             setTallyCipher(tallyCiphertext);
             setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
@@ -254,7 +254,8 @@ export function BallotDemo() {
         setError(null);
         try {
             const info = await rpc.getAccountInfo(tallyAccount, { encoding: 'base64' }).send();
-            const tallyCiphertext = base64ToBytes(info.value!.data[0]).slice(2, 2 + 64);
+            if (!info.value) throw new Error('Tally account not found — try again in a moment');
+            const tallyCiphertext = base64ToBytes(info.value.data[0]).slice(2, 2 + 64);
             setTallyCipher(tallyCiphertext);
             setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
         } catch (caught) {
