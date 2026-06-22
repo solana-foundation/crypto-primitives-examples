@@ -28,7 +28,7 @@ import {
     sumCiphertexts,
 } from '@/lib/elgamal';
 import { getClusterFromClusterId, getSolanaExplorerAddressUrl, getSolanaExplorerUrl } from '@/lib/explorer';
-import { base64ToBytes, bytesToHex } from '@/lib/hex';
+import { base64ToBytes, bytesToHex, hexToBytes } from '@/lib/hex';
 import { getProgramAddress } from '@/lib/program';
 import { formatTransactionError } from '@/lib/transactionErrors';
 
@@ -73,8 +73,11 @@ export function BallotDemo() {
     const [result, setResult] = useState<RunResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [tallyAccount, setTallyAccount] = useState<Address | null>(null);
+    const [tallyCipher, setTallyCipher] = useState<Uint8Array | null>(null);
+    const [tallyKeyInput, setTallyKeyInput] = useState('');
     const [onChainTally, setOnChainTally] = useState<number | null>(null);
     const [tallying, setTallying] = useState(false);
+    const [decrypting, setDecrypting] = useState(false);
 
     useEffect(() => {
         getDemoWallet()
@@ -85,12 +88,20 @@ export function BallotDemo() {
     function resetTally() {
         setOnChainTally(null);
         setTallyAccount(null);
+        setTallyCipher(null);
+    }
+
+    function decryptTally(cipher: Uint8Array, keyHex: string): number | null {
+        const clean = keyHex.trim();
+        if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(clean)) return null;
+        return decryptSmallAmount(Uint8Array.from(hexToBytes(clean)), cipher, VOTER_COUNT * 2);
     }
 
     function cycleVote(index: number) {
         setVotes(prev => prev.map((v, i) => (i === index ? VOTE_CYCLE[(VOTE_CYCLE.indexOf(v) + 1) % 3] : v)));
         setGenerated(null);
         setResult(null);
+        setTallyKeyInput('');
         resetTally();
     }
 
@@ -142,6 +153,7 @@ export function BallotDemo() {
                 wouldBeTally,
                 yesCount: votes.filter(v => v === 'yes').length,
             });
+            setTallyKeyInput(bytesToHex(tallyKeypair.secret().toBytes()));
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Ballot generation failed');
         }
@@ -223,7 +235,8 @@ export function BallotDemo() {
             const data = base64ToBytes(info.value!.data[0]);
             const tallyCiphertext = data.slice(2, 2 + 64);
             setTallyAccount(account.address);
-            setOnChainTally(decryptSmallAmount(generated.tallySecret, tallyCiphertext, VOTER_COUNT * 2));
+            setTallyCipher(tallyCiphertext);
+            setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
         } catch (caught) {
             if (caught instanceof InsufficientDemoFundsError) {
                 requestFunding({ address: caught.address, onFunded: () => void tallyOnChain() });
@@ -232,6 +245,22 @@ export function BallotDemo() {
             setError(formatTransactionError(caught));
         } finally {
             setTallying(false);
+        }
+    }
+
+    async function decryptFromChain() {
+        if (!tallyAccount) return;
+        setDecrypting(true);
+        setError(null);
+        try {
+            const info = await rpc.getAccountInfo(tallyAccount, { encoding: 'base64' }).send();
+            const tallyCiphertext = base64ToBytes(info.value!.data[0]).slice(2, 2 + 64);
+            setTallyCipher(tallyCiphertext);
+            setOnChainTally(decryptTally(tallyCiphertext, tallyKeyInput));
+        } catch (caught) {
+            setError(formatTransactionError(caught));
+        } finally {
+            setDecrypting(false);
         }
     }
 
@@ -305,32 +334,58 @@ export function BallotDemo() {
         </div>
     );
 
-    const tallyPanel = onChainTally != null && (
+    const tallyPanel = tallyCipher && (
         <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
-            <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="success">On-chain tally</Badge>
-                <span className="text-sand-1100">
-                    summed on-chain while encrypted, then decrypted from the total only:{' '}
-                    <span className="font-medium text-foreground">{onChainTally}</span>
-                    {generated?.stuffedCount === 0 && ` yes / ${VOTER_COUNT - onChainTally} no`}
+            <label className="block">
+                <span className="text-xs font-medium text-sand-1100">
+                    ElGamal tally key — only this secret can read the on-chain sum. Edit it and decrypt again to watch
+                    it fail.
                 </span>
-                {tallyAccount && (
-                    <Button asChild size="sm" variant="secondary">
-                        <a
-                            href={getSolanaExplorerAddressUrl(tallyAccount, cluster)}
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            View account
-                        </a>
-                    </Button>
-                )}
-            </div>
-            {generated && generated.stuffedCount > 0 && (
-                <div className="text-destructive">
-                    this total is inflated — the tally instruction sums ballots blindly, so {generated.stuffedCount}{' '}
-                    stuffed ballot{generated.stuffedCount > 1 ? 's' : ''} added 2 each. Only the validity proof rejects
-                    them.
+                <input
+                    className="mt-1 block w-full rounded-lg border border-input bg-background px-2 py-1 font-berkeley-mono text-xs text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    onChange={e => setTallyKeyInput(e.target.value)}
+                    spellCheck={false}
+                    value={tallyKeyInput}
+                />
+            </label>
+            <Button loading={decrypting} onClick={() => void decryptFromChain()} size="sm" variant="secondary">
+                Fetch &amp; decrypt the on-chain tally
+            </Button>
+            {onChainTally != null ? (
+                <>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge variant="success">Decrypted</Badge>
+                        <span className="text-sand-1100">
+                            from the on-chain sum only:{' '}
+                            <span className="font-medium text-foreground">{onChainTally}</span>
+                            {generated?.stuffedCount === 0 && ` yes / ${VOTER_COUNT - onChainTally} no`}
+                        </span>
+                        {tallyAccount && (
+                            <Button asChild size="sm" variant="secondary">
+                                <a
+                                    href={getSolanaExplorerAddressUrl(tallyAccount, cluster)}
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    View account
+                                </a>
+                            </Button>
+                        )}
+                    </div>
+                    {generated && generated.stuffedCount > 0 && (
+                        <div className="text-destructive">
+                            this total is inflated — the tally instruction sums ballots blindly, so{' '}
+                            {generated.stuffedCount} stuffed ballot{generated.stuffedCount > 1 ? 's' : ''} added 2 each.
+                            Only the validity proof rejects them.
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="danger">Can't decrypt</Badge>
+                    <span className="text-sand-1100">
+                        this key doesn't match the ballots — the encrypted sum stays unreadable
+                    </span>
                 </div>
             )}
         </div>
