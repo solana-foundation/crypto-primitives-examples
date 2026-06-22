@@ -288,7 +288,7 @@ export function ElGamalDemo() {
     const symbol = COMPARISON_SYMBOL[op];
 
     const stage1: StageState = generated ? 'done' : 'active';
-    const stage2: StageState = running ? 'active' : generated ? 'done' : 'idle';
+    const stage2: StageState = running ? 'active' : result ? 'done' : generated ? 'active' : 'idle';
     const stage3: StageState = result ? (result.ok ? 'pass' : 'fail') : 'idle';
 
     const resultPanel = result && generated && (
@@ -399,7 +399,7 @@ export function ElGamalDemo() {
                                         value={claim}
                                     />
                                 </label>
-                                <Button onClick={generate}>Encrypt &amp; generate proof</Button>
+                                {!generated && <Button onClick={generate}>Encrypt &amp; generate proof</Button>}
                             </div>
                             {generated && (
                                 <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">

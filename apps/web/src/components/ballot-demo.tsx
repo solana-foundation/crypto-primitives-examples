@@ -274,9 +274,9 @@ export function BallotDemo() {
               ? 'pass'
               : 'fail'
           : generated
-            ? 'done'
+            ? 'active'
             : 'idle';
-    const stage3: StageState = tallying ? 'active' : generated ? 'done' : 'idle';
+    const stage3: StageState = tallying ? 'active' : onChainTally != null ? 'done' : result ? 'active' : 'idle';
 
     const proofPanel = result && generated && (
         <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
@@ -440,7 +440,7 @@ export function BallotDemo() {
                                     </button>
                                 ))}
                             </div>
-                            <Button onClick={castBallots}>Cast encrypted ballots</Button>
+                            {!generated && <Button onClick={castBallots}>Cast encrypted ballots</Button>}
                             {generated && (
                                 <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
                                     <div className="text-sand-1100">
@@ -506,7 +506,7 @@ export function BallotDemo() {
                     actions={
                         <div className="space-y-3">
                             <Button
-                                disabled={tallying || !wallet || !generated}
+                                disabled={tallying || !wallet || !result}
                                 loading={tallying}
                                 onClick={() => void tallyOnChain()}
                             >
