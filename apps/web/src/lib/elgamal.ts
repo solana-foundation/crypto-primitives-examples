@@ -23,6 +23,14 @@ function scalarMulBase(k: bigint) {
  * - lt: (claim−1)·G − C encrypts (claim − value − 1), in u64 range iff value < claim;
  *   the whole ciphertext is negated, so the decrypt handle flips sign too
  */
+export const BALLOT_TALLY_ADD_DISCRIMINATOR = 14;
+export const BALLOT_TALLY_ACCOUNT_SIZE = 2 + 64;
+
+/** Instruction data to fold one 64-byte ballot ciphertext into the on-chain tally. */
+export function ballotTallyAddInstructionData(ciphertext: Uint8Array): Uint8Array {
+    return new Uint8Array([BALLOT_TALLY_ADD_DISCRIMINATOR, ...ciphertext]);
+}
+
 /** Adds twisted ElGamal ciphertexts component-wise; the sum encrypts the sum of the amounts. */
 export function sumCiphertexts(ciphertexts: Uint8Array[]): Uint8Array {
     const commitment = ciphertexts.map(ct => Point.fromBytes(ct.subarray(0, 32))).reduce((a, b) => a.add(b));

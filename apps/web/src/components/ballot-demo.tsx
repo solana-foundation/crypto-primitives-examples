@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import { Badge, Button } from '@solana/design-system';
 import { verifyBatchedRangeProofU64 } from '@solana-program/zk-elgamal-proof';
-import type { KeyPairSigner, Signature } from '@solana/kit';
+import {
+    AccountRole,
+    type Address,
+    generateKeyPairSigner,
+    type Instruction,
+    type KeyPairSigner,
+    type Signature,
+} from '@solana/kit';
 import { BatchedRangeProofU64Data, ElGamalKeypair, PedersenCommitment, PedersenOpening } from '@solana/zk-sdk/bundler';
 
 import { useDemoWalletFunding } from '@/components/demo-funding';
@@ -13,17 +21,25 @@ import { ZkProofFlow } from '@/components/zk-proof-flow';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
 import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/demo-wallet';
-import { decryptSmallAmount, sumCiphertexts } from '@/lib/elgamal';
-import { getClusterFromClusterId, getSolanaExplorerUrl } from '@/lib/explorer';
-import { bytesToHex } from '@/lib/hex';
+import {
+    BALLOT_TALLY_ACCOUNT_SIZE,
+    ballotTallyAddInstructionData,
+    decryptSmallAmount,
+    sumCiphertexts,
+} from '@/lib/elgamal';
+import { getClusterFromClusterId, getSolanaExplorerAddressUrl, getSolanaExplorerUrl } from '@/lib/explorer';
+import { base64ToBytes, bytesToHex } from '@/lib/hex';
+import { getProgramAddress } from '@/lib/program';
 import { formatTransactionError } from '@/lib/transactionErrors';
 
 type Vote = 'no' | 'stuffed' | 'yes';
 
 interface Generated {
+    ballotCiphertexts: Uint8Array[];
     proofChunks: Uint8Array[];
     stuffedCount: number;
     tallyCiphertext: string;
+    tallySecret: Uint8Array;
     wouldBeTally: number | null;
     yesCount: number;
 }
@@ -56,6 +72,9 @@ export function BallotDemo() {
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<RunResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [tallyAccount, setTallyAccount] = useState<Address | null>(null);
+    const [onChainTally, setOnChainTally] = useState<number | null>(null);
+    const [tallying, setTallying] = useState(false);
 
     useEffect(() => {
         getDemoWallet()
@@ -63,16 +82,23 @@ export function BallotDemo() {
             .catch(() => undefined);
     }, []);
 
+    function resetTally() {
+        setOnChainTally(null);
+        setTallyAccount(null);
+    }
+
     function cycleVote(index: number) {
         setVotes(prev => prev.map((v, i) => (i === index ? VOTE_CYCLE[(VOTE_CYCLE.indexOf(v) + 1) % 3] : v)));
         setGenerated(null);
         setResult(null);
+        resetTally();
     }
 
     function castBallots() {
         setError(null);
         setResult(null);
         setGenerated(null);
+        resetTally();
         try {
             const tallyKeypair = new ElGamalKeypair();
             const amounts = votes.map(v => VOTE_AMOUNT[v]);
@@ -108,9 +134,11 @@ export function BallotDemo() {
             const wouldBeTally = decryptSmallAmount(tallyKeypair.secret().toBytes(), tallyCiphertext, VOTER_COUNT * 2);
 
             setGenerated({
+                ballotCiphertexts: ciphertexts.map(ct => ct.toBytes()),
                 proofChunks,
                 stuffedCount: votes.filter(v => v === 'stuffed').length,
                 tallyCiphertext: bytesToHex(tallyCiphertext),
+                tallySecret: tallyKeypair.secret().toBytes(),
                 wouldBeTally,
                 yesCount: votes.filter(v => v === 'yes').length,
             });
@@ -156,6 +184,54 @@ export function BallotDemo() {
             setError(formatTransactionError(caught));
         } finally {
             setRunning(false);
+        }
+    }
+
+    async function tallyOnChain() {
+        if (!wallet || !generated) return;
+        setTallying(true);
+        setError(null);
+        resetTally();
+        try {
+            await ensureFunded(rpc, wallet, getClusterFromClusterId(clusterId) === 'localnet');
+            const space = BigInt(BALLOT_TALLY_ACCOUNT_SIZE);
+            const lamports = await rpc.getMinimumBalanceForRentExemption(space).send();
+            const account = await generateKeyPairSigner();
+            await signAndSend(
+                [
+                    getCreateAccountInstruction({
+                        lamports,
+                        newAccount: account,
+                        payer: wallet,
+                        programAddress: getProgramAddress(),
+                        space,
+                    }),
+                ],
+                wallet,
+            );
+
+            for (const ballot of generated.ballotCiphertexts) {
+                const instruction: Instruction = {
+                    accounts: [{ address: account.address, role: AccountRole.WRITABLE }],
+                    data: ballotTallyAddInstructionData(ballot),
+                    programAddress: getProgramAddress(),
+                };
+                await signAndSend([instruction], wallet);
+            }
+
+            const info = await rpc.getAccountInfo(account.address, { encoding: 'base64' }).send();
+            const data = base64ToBytes(info.value!.data[0]);
+            const tallyCiphertext = data.slice(2, 2 + 64);
+            setTallyAccount(account.address);
+            setOnChainTally(decryptSmallAmount(generated.tallySecret, tallyCiphertext, VOTER_COUNT * 2));
+        } catch (caught) {
+            if (caught instanceof InsufficientDemoFundsError) {
+                requestFunding({ address: caught.address, onFunded: () => void tallyOnChain() });
+                return;
+            }
+            setError(formatTransactionError(caught));
+        } finally {
+            setTallying(false);
         }
     }
 
@@ -222,6 +298,13 @@ export function BallotDemo() {
                         onClick={() => void verifyOnChain()}
                     >
                         Prove all ballots valid on-chain
+                    </Button>
+                    <Button
+                        disabled={tallying || !wallet || !generated}
+                        loading={tallying}
+                        onClick={() => void tallyOnChain()}
+                    >
+                        Store &amp; tally on-chain
                     </Button>
                 </div>
 
@@ -316,6 +399,37 @@ export function BallotDemo() {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {onChainTally != null && (
+                    <div className="mt-4 space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Badge variant="success">On-chain tally</Badge>
+                            <span className="text-sand-1100">
+                                ballots summed on-chain while encrypted, then decrypted from the total only:{' '}
+                                <span className="font-medium text-foreground">{onChainTally}</span>
+                                {generated?.stuffedCount === 0 && ` yes / ${VOTER_COUNT - onChainTally} no`}
+                            </span>
+                            {tallyAccount && (
+                                <Button asChild size="sm" variant="secondary">
+                                    <a
+                                        href={getSolanaExplorerAddressUrl(tallyAccount, cluster)}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        View account
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
+                        {generated && generated.stuffedCount > 0 && (
+                            <div className="text-destructive">
+                                this total is inflated — the tally instruction sums ballots blindly, so{' '}
+                                {generated.stuffedCount} stuffed ballot{generated.stuffedCount > 1 ? 's' : ''} added 2
+                                each. Only the validity proof above rejects them.
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -87,4 +87,14 @@ pub enum CryptoPrimitivesInstruction {
         registry: pinocchio::Address,
         key: [u8; 192],
     } = 13,
+
+    /// Adds a twisted ElGamal ballot ciphertext (64 bytes: 32-byte commitment
+    /// then 32-byte decrypt handle) to the tally account's running encrypted
+    /// total via the `sol_curve_group_op` ristretto255 addition syscall. The
+    /// account stores `[count: u16-le][tally: 64]`.
+    BallotTallyAdd {
+        #[codama(account(name = "tally", writable))]
+        tally: pinocchio::Address,
+        ballot: [u8; 64],
+    } = 14,
 }
