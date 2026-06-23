@@ -28,6 +28,7 @@ import { ellipsify } from '@/lib/utils';
 const viteEnv = import.meta.env as unknown as {
     readonly DEV?: boolean;
     readonly VITE_DEFAULT_CLUSTER?: string;
+    readonly VITE_DEVNET_RPC_URL?: string;
     readonly VITE_MAINNET_RPC_URL?: string;
 };
 
@@ -48,7 +49,11 @@ function networkFromClusterId(clusterId: SolanaClusterId): 'devnet' | 'localnet'
 function buildClusters() {
     const clusters = [
         ...(viteEnv.DEV ? [{ id: 'solana:localnet' as const, label: 'Localnet', url: '/rpc' }] : []),
-        { id: 'solana:devnet' as const, label: 'Devnet', url: 'https://api.devnet.solana.com' },
+        {
+            id: 'solana:devnet' as const,
+            label: 'Devnet',
+            url: viteEnv.VITE_DEVNET_RPC_URL || 'https://api.devnet.solana.com',
+        },
     ];
 
     const custom = readCustomRpc();
