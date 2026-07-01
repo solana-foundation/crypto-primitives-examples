@@ -17,6 +17,7 @@ import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
 import {
     aggregatePubkeys,
+    G2_POINT_BYTES,
     generateMember,
     type Member,
     memberInstructionData,
@@ -97,11 +98,27 @@ export function BlsRegistryDemo() {
                 clearDemoState(storageKey);
                 return;
             }
+
+            const restoredMembers = new Map<number, Member>();
             const restored = stored.rows.map(row => {
                 const member = restoreMember(row.secret);
-                members.current.set(row.id, member);
+                restoredMembers.set(row.id, member);
                 return { id: row.id, in: row.in, pubkey: member.pubkey, sign: row.sign };
             });
+
+            const raw = base64ToBytes(info.value.data[0]);
+            const onChainCount = raw[0] | (raw[1] << 8);
+            const onChainAggregateKey = bytesToHex(raw.slice(2, 2 + G2_POINT_BYTES));
+            const activeMembers = restored.filter(row => row.in).map(row => restoredMembers.get(row.id)!);
+            const drifted =
+                activeMembers.length !== onChainCount ||
+                (onChainCount > 0 && aggregatePubkeys(activeMembers) !== onChainAggregateKey);
+            if (drifted) {
+                clearDemoState(storageKey);
+                return;
+            }
+
+            restoredMembers.forEach((member, id) => members.current.set(id, member));
             nextId.current = stored.rows.reduce((max, row) => Math.max(max, row.id), -1) + 1;
             setRegistry(stored.registry as Address);
             setRows(restored);
