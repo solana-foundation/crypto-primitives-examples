@@ -99,29 +99,33 @@ export function BlsRegistryDemo() {
                 return;
             }
 
-            const restoredMembers = new Map<number, Member>();
-            const restored = stored.rows.map(row => {
-                const member = restoreMember(row.secret);
-                restoredMembers.set(row.id, member);
-                return { id: row.id, in: row.in, pubkey: member.pubkey, sign: row.sign };
-            });
+            try {
+                const restoredMembers = new Map<number, Member>();
+                const restored = stored.rows.map(row => {
+                    const member = restoreMember(row.secret);
+                    restoredMembers.set(row.id, member);
+                    return { id: row.id, in: row.in, pubkey: member.pubkey, sign: row.sign };
+                });
 
-            const raw = base64ToBytes(info.value.data[0]);
-            const onChainCount = raw[0] | (raw[1] << 8);
-            const onChainAggregateKey = bytesToHex(raw.slice(2, 2 + G2_POINT_BYTES));
-            const activeMembers = restored.filter(row => row.in).map(row => restoredMembers.get(row.id)!);
-            const drifted =
-                activeMembers.length !== onChainCount ||
-                (onChainCount > 0 && aggregatePubkeys(activeMembers) !== onChainAggregateKey);
-            if (drifted) {
+                const raw = base64ToBytes(info.value.data[0]);
+                const onChainCount = raw[0] | (raw[1] << 8);
+                const onChainAggregateKey = bytesToHex(raw.slice(2, 2 + G2_POINT_BYTES));
+                const activeMembers = restored.filter(row => row.in).map(row => restoredMembers.get(row.id)!);
+                const drifted =
+                    activeMembers.length !== onChainCount ||
+                    (onChainCount > 0 && aggregatePubkeys(activeMembers) !== onChainAggregateKey);
+                if (drifted) {
+                    clearDemoState(storageKey);
+                    return;
+                }
+
+                restoredMembers.forEach((member, id) => members.current.set(id, member));
+                nextId.current = stored.rows.reduce((max, row) => Math.max(max, row.id), -1) + 1;
+                setRegistry(stored.registry as Address);
+                setRows(restored);
+            } catch {
                 clearDemoState(storageKey);
-                return;
             }
-
-            restoredMembers.forEach((member, id) => members.current.set(id, member));
-            nextId.current = stored.rows.reduce((max, row) => Math.max(max, row.id), -1) + 1;
-            setRegistry(stored.registry as Address);
-            setRows(restored);
         })().catch(() => undefined);
         return () => {
             cancelled = true;
@@ -239,7 +243,7 @@ export function BlsRegistryDemo() {
             const info = await rpc.getAccountInfo(registry, { encoding: 'base64' }).send();
             const raw = base64ToBytes(info.value!.data[0]);
             const memberCount = raw[0] | (raw[1] << 8);
-            const aggregateKey = raw.slice(2, 2 + 192);
+            const aggregateKey = raw.slice(2, 2 + G2_POINT_BYTES);
 
             const signers = rows.filter(r => r.sign).map(r => members.current.get(r.id)!);
             const ok = memberCount > 0 && verifyAgainstOnChainKey(signers, MESSAGE, aggregateKey);
