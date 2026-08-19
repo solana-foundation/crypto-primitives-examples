@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  SOLANA_VERSION: '4.0.0'
+  SOLANA_VERSION: '4.2.1'
 
 jobs:
   unit-test:

@@ -232,7 +232,7 @@ export function MultisigDemo() {
                 .getTransaction(signature as Signature, {
                     commitment: 'confirmed',
                     encoding: 'json',
-                    maxSupportedTransactionVersion: 0,
+                    maxSupportedTransactionVersion: 1,
                 })
                 .send();
             const account = await rpc.getAccountInfo(multisig, { encoding: 'base64' }).send();

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import {
     appendTransactionMessageInstructions,
+    assertIsTransactionWithBlockhashLifetime,
     createKeyPairSignerFromBytes,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
@@ -42,11 +43,12 @@ async function main() {
         m => appendTransactionMessageInstructions(instructions, m),
     );
     const signedTx = await signTransactionMessageWithSigners(message);
+    assertIsTransactionWithBlockhashLifetime(signedTx);
     const signature = getSignatureFromTransaction(signedTx);
     await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTx, { commitment: 'confirmed' });
 
     const tx = await rpc
-        .getTransaction(signature, { commitment: 'confirmed', encoding: 'json', maxSupportedTransactionVersion: 0 })
+        .getTransaction(signature, { commitment: 'confirmed', encoding: 'json', maxSupportedTransactionVersion: 1 })
         .send();
 
     console.log('signature:', signature);

@@ -33,7 +33,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           rust-cache-key: 'release-devnet'
-          solana-version: 'v4.0.0'
+          solana-version: 'v4.2.1'
 
       # Fetch secrets only after all toolchain setup (third-party actions and the
       # remote Solana installer) has run, so deploy credentials are never present

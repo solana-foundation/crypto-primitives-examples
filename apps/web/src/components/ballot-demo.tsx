@@ -182,7 +182,7 @@ export function BallotDemo() {
                     .getTransaction(signature as Signature, {
                         commitment: 'confirmed',
                         encoding: 'json',
-                        maxSupportedTransactionVersion: 0,
+                        maxSupportedTransactionVersion: 1,
                     })
                     .send();
                 checks.push({ computeUnits: tx?.meta?.computeUnitsConsumed ?? null, ok, signature });

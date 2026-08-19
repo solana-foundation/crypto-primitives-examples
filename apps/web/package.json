@@ -21,7 +21,7 @@
     "@solana/connector": "^0.2.4",
     "@solana/crypto-primitives-client": "workspace:*",
     "@solana/design-system": "^1.0.1",
-    "@solana/kit": "^6.9.0",
+    "@solana/kit": "^7.1.1",
     "@solana/zk-sdk": "0.4.2",
     "@tanstack/react-query": "^5.100.11",
     "@vercel/analytics": "^2.0.1",

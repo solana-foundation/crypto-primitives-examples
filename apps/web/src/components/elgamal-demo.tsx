@@ -262,7 +262,7 @@ export function ElGamalDemo() {
                     .getTransaction(signature as Signature, {
                         commitment: 'confirmed',
                         encoding: 'json',
-                        maxSupportedTransactionVersion: 0,
+                        maxSupportedTransactionVersion: 1,
                     })
                     .send();
                 checks.push({
