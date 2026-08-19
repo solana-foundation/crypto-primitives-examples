@@ -131,7 +131,7 @@ The BN254 G2 and BLS12-381 syscalls used by this program require Agave 4.0, and 
 | Tool      | Version | Notes                                                     |
 | --------- | ------- | --------------------------------------------------------- |
 | Rust      | 1.92    | Pinned in `rust-toolchain.toml`                           |
-| Agave CLI | 4.0.0   | Pinned in `.solana-version`; `just toolchain` installs it |
+| Agave CLI | 4.2.1   | Pinned in `.solana-version`; `just toolchain` installs it |
 | Node.js   | 24.13.0 | Pinned in `.nvmrc`                                        |
 | pnpm      | latest  | Package manager                                           |
 | Just      | latest  | Task runner                                               |
@@ -218,7 +218,7 @@ GitHub Actions runs split workflows on PRs and pushes to `main`:
 
 ## Notes & Gotchas
 
-- **This repo treats alt_bn128 G2 as add/mul only.** The pinned Agave 4.0.0 runtime path used here dispatches the G2 add (op 4) and mul (op 6) opcodes. SIMD-0302 also describes subtraction, but this checked-in program does not expose an alt_bn128 G2 subtraction instruction. BLS12-381 does have subtraction in this repo, which is why the registry demo can remove a supplied member key.
+- **This repo treats alt_bn128 G2 as add/mul only.** The pinned Agave 4.2.1 runtime path used here dispatches the G2 add (op 4) and mul (op 6) opcodes. SIMD-0302 also describes subtraction, but this checked-in program does not expose an alt_bn128 G2 subtraction instruction. BLS12-381 does have subtraction in this repo, which is why the registry demo can remove a supplied member key.
 - **The BLS12-381 registry demo verifies signatures off-chain.** SIMD-0388 covers group operations, validation, pairing, and decompression, but this program currently wraps only group add/sub/mul. Its on-chain role is maintaining the aggregate G2 key.
 - **Byte formats differ.** alt_bn128 G2 is 128 bytes in EIP-197 big-endian order; BLS12-381 is uncompressed Zcash/blstrs big-endian (G1 96 bytes, G2 192 bytes). See `apps/web/src/lib/` for the converters.
 - **Transaction size cap (1232 bytes)** limits inline 128-byte pubkeys to ~7 per transaction; the multisig stores all keys in chunked transactions, while the registry stores only the running aggregate (one point) so it scales freely.

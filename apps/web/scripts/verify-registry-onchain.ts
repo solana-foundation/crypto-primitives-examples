@@ -5,6 +5,7 @@ import {
     type Address,
     address,
     appendTransactionMessageInstructions,
+    assertIsTransactionWithBlockhashLifetime,
     createKeyPairSignerFromBytes,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
@@ -44,6 +45,7 @@ async function send(instructions: Instruction[], payer: TransactionSigner) {
         m => appendTransactionMessageInstructions(instructions, m),
     );
     const signed = await signTransactionMessageWithSigners(message);
+    assertIsTransactionWithBlockhashLifetime(signed);
     await sendAndConfirm(signed, { commitment: 'confirmed' });
     return getSignatureFromTransaction(signed);
 }

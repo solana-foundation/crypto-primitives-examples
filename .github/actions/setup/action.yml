@@ -33,7 +33,7 @@ inputs:
   solana-version:
     description: "Solana CLI version to install (e.g., 'v4.0.0')"
     required: false
-    default: 'v4.0.0'
+    default: 'v4.2.1'
   install-just:
     description: 'Install just'
     required: false

@@ -19,6 +19,6 @@
     "build": "tsc"
   },
   "peerDependencies": {
-    "@solana/kit": ">=5.0.0"
+    "@solana/kit": ">=7.0.0"
   }
 }
