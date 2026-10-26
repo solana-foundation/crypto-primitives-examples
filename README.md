@@ -130,7 +130,7 @@ The BN254 G2 and BLS12-381 syscalls used by this program require Agave 4.0, and 
 
 | Tool      | Version | Notes                                                     |
 | --------- | ------- | --------------------------------------------------------- |
-| Rust      | 1.92    | Pinned in `rust-toolchain.toml`                           |
+| Rust      | 1.97.1  | Pinned in `rust-toolchain.toml`                           |
 | Agave CLI | 4.2.1   | Pinned in `.solana-version`; `just toolchain` installs it |
 | Node.js   | 24.13.0 | Pinned in `.nvmrc`                                        |
 | pnpm      | latest  | Package manager                                           |
