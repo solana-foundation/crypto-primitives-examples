@@ -67,7 +67,7 @@ jobs:
             --with-compute-unit-price "${{ inputs.priority-fee }}"
 
       - name: Upload IDL via program-metadata (devnet)
-        uses: solana-developers/github-actions/metadata-upload@eb606791e11d06eb92593dfd3404bf0d4c809121
+        uses: solana-developers/github-actions/metadata-upload@e6ed2eb93c55eca911dbc711fb08683b42926a28
         with:
           program-id: ${{ env.PROGRAM_ID }}
           rpc-url: ${{ env.RPC_URL }}
