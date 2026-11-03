@@ -97,3 +97,18 @@ fn malformed_input_is_rejected() {
         &[Check::err(ProgramError::Custom(1))], // InvalidInputLength
     );
 }
+
+/// Identity signature and hash would satisfy the pairing equation trivially.
+#[test]
+fn identity_points_are_rejected() {
+    let (mollusk, program_id) = mollusk();
+    let mut data = vec![IX_BLS254_AGGREGATE_VERIFY];
+    data.extend_from_slice(&[0u8; 128]);
+    data.extend_from_slice(&from_hex(BN254_PUBKEY_1));
+    let instruction = Instruction::new_with_bytes(program_id, &data, vec![]);
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[],
+        &[Check::err(ProgramError::Custom(4))], // AggregateVerifyFailed
+    );
+}
