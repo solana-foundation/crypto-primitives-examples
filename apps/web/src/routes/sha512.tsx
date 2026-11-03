@@ -32,10 +32,6 @@ export function Sha512() {
                             <span className="text-foreground">Composable checks</span>: verification works inside calls
                             from other programs and on data read from accounts, which the precompile cannot do
                         </li>
-                        <li>
-                            <span className="text-foreground">Other Ed25519 systems</span>: check signatures from chains
-                            and tools that sign with Ed25519, such as Cosmos, NEAR, Sui or SSH keys
-                        </li>
                     </ul>
                     <p className="text-sm text-sand-1100">
                         <span className="text-foreground">Status:</span> live on devnet and testnet; mainnet activation
