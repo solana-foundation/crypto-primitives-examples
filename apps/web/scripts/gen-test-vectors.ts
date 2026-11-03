@@ -1,11 +1,14 @@
 /**
  * Generates deterministic test vectors for the Rust Mollusk integration tests.
  * Fixed secrets make the output reproducible; paste the printed constants into
- * tests/tests/{bls254_aggregate,multisig,bls_registry}.rs.
+ * tests/tests/{bls254_aggregate,multisig,bls_registry,ed25519}.rs.
  *
  *   pnpm --filter @solana/crypto-primitives-web exec tsx scripts/gen-test-vectors.ts
  */
+import { createHash } from 'node:crypto';
+
 import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import * as mcl from 'mcl-wasm';
 
 const MESSAGE = 'approve proposal #42';
@@ -15,6 +18,7 @@ const BN254_G2_GEN =
 
 const be32 = (n: string) => n.padStart(64, '0');
 const chunks32 = (h: string) => h.match(/.{64}/g) ?? [];
+const hex = (b: Uint8Array) => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
 
 function g2ToAgave(p: mcl.G2): string {
     const [, x0, x1, y0, y1] = p.getStr(16).split(' ');
@@ -61,7 +65,6 @@ function bls12381() {
     const bls = (
         bls12_381 as { shortSignatures: { getPublicKey: (sk: Uint8Array) => { toBytes: (c: boolean) => Uint8Array } } }
     ).shortSignatures;
-    const hex = (b: Uint8Array) => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
     const G2 = (
         bls12_381 as {
             G2: {
@@ -104,5 +107,32 @@ function bls12381() {
     print('BLS_AGG_SIG_1_2', aggSig(sigs.slice(0, 2)));
 }
 
+function ed25519Vectors() {
+    const { Point } = ed25519;
+    const order = Point.Fn.ORDER;
+    const leToBigint = (bytes: Uint8Array) => BigInt('0x' + hex(Uint8Array.from(bytes).reverse()));
+    const bigintToLe = (n: bigint) => Uint8Array.from(Buffer.from(n.toString(16).padStart(64, '0'), 'hex').reverse());
+
+    const rfcSecret = Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex');
+    console.log('\n// ===== Ed25519 =====');
+    print('ED25519_RFC8032_PUBKEY', hex(ed25519.getPublicKey(rfcSecret)));
+    print('ED25519_RFC8032_SIGNATURE', hex(ed25519.sign(new Uint8Array(), rfcSecret)));
+
+    const secret = new Uint8Array(32).fill(7);
+    const message = new TextEncoder().encode(MESSAGE);
+    const signature = ed25519.sign(message, secret);
+    const { scalar, pointBytes } = ed25519.utils.getExtendedPublicKey(secret);
+    print('ED25519_PUBKEY', hex(pointBytes));
+    print('ED25519_SIGNATURE', hex(signature));
+
+    const s = leToBigint(signature.slice(32));
+    print('ED25519_SIGNATURE_S_PLUS_L', hex(signature.slice(0, 32)) + hex(bigintToLe(s + order)));
+
+    const identity = Point.ZERO.toBytes();
+    const k = leToBigint(createHash('sha512').update(identity).update(pointBytes).update(message).digest()) % order;
+    print('ED25519_ZERO_NONCE_SIGNATURE', hex(identity) + hex(bigintToLe((k * scalar) % order)));
+}
+
 await bn254();
 bls12381();
+ed25519Vectors();

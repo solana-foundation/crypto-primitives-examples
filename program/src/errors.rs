@@ -31,6 +31,9 @@ pub enum CryptoPrimitivesProgramError {
     /// (7) Ballot tally account is not owned by this program, not writable, or too small
     #[error("Ballot tally account is not owned by this program, not writable, or too small")]
     InvalidBallotAccount,
+    /// (8) Ed25519 signature failed verification
+    #[error("Ed25519 signature failed verification")]
+    SignatureVerifyFailed,
 }
 
 impl From<CryptoPrimitivesProgramError> for ProgramError {

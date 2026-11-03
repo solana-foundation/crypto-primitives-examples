@@ -93,6 +93,60 @@ pub fn curve_pairing_map(
 }
 
 #[inline(always)]
+pub fn curve_multiscalar_mul(
+    curve_id: u64,
+    scalars: &[u8],
+    points: &[u8],
+    count: u64,
+    output: &mut [u8],
+) -> Result<(), ProgramError> {
+    #[cfg(target_os = "solana")]
+    {
+        let code = unsafe {
+            solana_define_syscall::definitions::sol_curve_multiscalar_mul(
+                curve_id,
+                scalars.as_ptr(),
+                points.as_ptr(),
+                count,
+                output.as_mut_ptr(),
+            )
+        };
+        match code {
+            0 => Ok(()),
+            _ => Err(CryptoPrimitivesProgramError::SyscallFailed.into()),
+        }
+    }
+    #[cfg(not(target_os = "solana"))]
+    {
+        let _ = (curve_id, scalars, points, count, output);
+        Err(CryptoPrimitivesProgramError::SyscallUnavailable.into())
+    }
+}
+
+#[inline(always)]
+pub fn sha512(vals: &[&[u8]], output: &mut [u8; 64]) -> Result<(), ProgramError> {
+    #[cfg(target_os = "solana")]
+    {
+        let code = unsafe {
+            solana_define_syscall::definitions::sol_sha512(
+                vals.as_ptr() as *const u8,
+                vals.len() as u64,
+                output.as_mut_ptr(),
+            )
+        };
+        match code {
+            0 => Ok(()),
+            _ => Err(CryptoPrimitivesProgramError::SyscallFailed.into()),
+        }
+    }
+    #[cfg(not(target_os = "solana"))]
+    {
+        let _ = (vals, output);
+        Err(CryptoPrimitivesProgramError::SyscallUnavailable.into())
+    }
+}
+
+#[inline(always)]
 pub fn set_return_data(data: &[u8]) {
     #[cfg(target_os = "solana")]
     unsafe {

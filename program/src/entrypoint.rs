@@ -5,8 +5,8 @@ use crate::instructions::{
     process_bls12_381_g1_add, process_bls12_381_g1_mul, process_bls12_381_g1_sub,
     process_bls12_381_g2_add, process_bls12_381_g2_mul, process_bls12_381_g2_sub,
     process_bls254_aggregate_verify, process_bls_registry_add, process_bls_registry_remove,
-    process_bls_registry_verify, process_multisig_add_signers, process_multisig_verify,
-    process_noop, CryptoPrimitivesInstructionDiscriminators,
+    process_bls_registry_verify, process_ed25519_verify, process_multisig_add_signers,
+    process_multisig_verify, process_noop, CryptoPrimitivesInstructionDiscriminators,
 };
 
 entrypoint!(process_instruction);
@@ -70,6 +70,9 @@ pub fn process_instruction(
         }
         CryptoPrimitivesInstructionDiscriminators::BlsRegistryVerify => {
             process_bls_registry_verify(program_id, accounts, instruction_data)
+        }
+        CryptoPrimitivesInstructionDiscriminators::Ed25519Verify => {
+            process_ed25519_verify(program_id, accounts, instruction_data)
         }
     }
 }

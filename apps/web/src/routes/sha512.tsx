@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 
+import { Ed25519Demo } from '@/components/ed25519-demo';
 import { HashTerm, SyscallTerm } from '@/components/glossary-term';
 
 export function Sha512() {
@@ -11,51 +12,64 @@ export function Sha512() {
             <div className="grid gap-8 lg:grid-cols-3">
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
-                        <HashTerm>Hashing</HashTerm> already has native SHA-256, Keccak, and Blake3 paths on Solana.
-                        SIMD-0512 proposes the missing SHA-512 counterpart: a <SyscallTerm>syscall</SyscallTerm> with
-                        the same interface as the existing{' '}
-                        <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code>, producing a
-                        64-byte output for a fraction of the compute a pure-BPF implementation costs.
+                        Every Solana wallet signs with Ed25519, and Ed25519 is built on the SHA-512{' '}
+                        <HashTerm>hash</HashTerm>. Until now, programs could not check those signatures themselves: they
+                        relied on the Ed25519 precompile, a built-in checker that lives outside the program.
                     </p>
-                    <p className="text-muted-foreground">Here are some examples of what it would enable:</p>
+                    <p className="text-muted-foreground">
+                        SIMD-0568 proposes removing the precompiles because they are rigid and hard to use safely. The
+                        new <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code>{' '}
+                        <SyscallTerm>syscall</SyscallTerm>, combined with the existing curve25519 syscalls, is what
+                        replaces them: the program verifies the signature itself.
+                    </p>
+                    <p className="text-muted-foreground">Here are some examples of what this makes possible:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
-                            <span className="text-foreground">Cheap on-chain hashing</span> —{' '}
-                            <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code> would follow{' '}
-                            <code className="font-berkeley-mono text-xs text-foreground">sol_sha256</code>&apos;s cost
-                            model, so a short hash lands under 100 CU via syscall versus thousands computed in BPF
+                            <span className="text-foreground">Signed permissions</span>: a user signs off-chain and
+                            anyone can submit it; the program checks who signed (see the demo)
                         </li>
                         <li>
-                            <span className="text-foreground">Interop with SHA-512 systems</span> — verify hashes,
-                            commitments, or Merkle proofs from external systems that use SHA-512 (rather than SHA-256 or
-                            Keccak)
+                            <span className="text-foreground">Composable checks</span>: verification works inside calls
+                            from other programs and on data read from accounts, which the precompile cannot do
                         </li>
                         <li>
-                            <span className="text-foreground">Ed25519-adjacent checks</span> — SHA-512 is the hash used
-                            inside Ed25519, so programs that need that same hashing step would get it natively
+                            <span className="text-foreground">Other Ed25519 systems</span>: check signatures from chains
+                            and tools that sign with Ed25519, such as Cosmos, NEAR, Sui or SSH keys
                         </li>
                     </ul>
-                    <a
-                        className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                        href="https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0512-sha512-syscall.md"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                    >
-                        Read SIMD-0512 <ExternalLink className="size-3.5" />
-                    </a>
+                    <p className="text-sm text-sand-1100">
+                        <span className="text-foreground">Status:</span> live on devnet and testnet; mainnet activation
+                        is pending. SIMD-0568 is still a proposal.
+                    </p>
+                    <div className="flex flex-col gap-1">
+                        <a
+                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                            href="https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0512-sha512-syscall.md"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            Read SIMD-0512 <ExternalLink className="size-3.5" />
+                        </a>
+                        <a
+                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                            href="https://github.com/solana-foundation/solana-improvement-documents/pull/568"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            Read SIMD-0568 <ExternalLink className="size-3.5" />
+                        </a>
+                        <a
+                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                            href="https://github.com/solana-foundation/crypto-primitives-examples/tree/main/program/src/instructions/ed25519"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            View source <ExternalLink className="size-3.5" />
+                        </a>
+                    </div>
                 </div>
                 <div className="lg:col-span-2">
-                    <div className="space-y-3 rounded-xl border border-dashed bg-card p-6">
-                        <span className="inline-flex items-center rounded-full bg-sand-200 px-2.5 py-0.5 text-xs font-medium text-sand-1100">
-                            Coming soon
-                        </span>
-                        <h2 className="text-lg font-semibold text-foreground">No live demo yet</h2>
-                        <p className="text-sm text-muted-foreground">
-                            <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code> is proposed
-                            in SIMD-0512 and tracked in the feature-gate registry, but it is not activated on any
-                            cluster yet.
-                        </p>
-                    </div>
+                    <Ed25519Demo />
                 </div>
             </div>
         </div>

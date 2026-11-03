@@ -8,7 +8,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 interface PrimitiveRow {
-    comingSoon?: boolean;
     encoding: string;
     example: string;
     featureKey: string;
@@ -105,9 +104,8 @@ const ROWS: PrimitiveRow[] = [
         ],
     },
     {
-        comingSoon: true,
         encoding: 'n/a',
-        example: 'Hash data with a proposed native SHA-512 syscall — a 64-byte output at syscall cost.',
+        example: 'Verify a wallet signature inside the program, without the Ed25519 precompile.',
         featureKey: 's512oDwgx8hjMnaQjXfqqrZroVj4HvC6TkN3iSSWXCh',
         kind: 'Syscall',
         name: 'SHA-512 hash',
@@ -115,11 +113,11 @@ const ROWS: PrimitiveRow[] = [
         security: 'n/a',
         simd: 'SIMD-0512',
         simdUrl: `${SIMD_BASE}0512-sha512-syscall.md`,
-        status: 'pending',
+        status: 'devnet',
         to: '/sha512',
         uses: [
-            'Cheap on-chain hashing — the proposal targets the same cost model as existing hash syscalls',
-            'Interop with SHA-512 systems — verify hashes or proofs from external systems that use SHA-512',
+            'In-program Ed25519 verification, the replacement for the precompile SIMD-0568 proposes to remove',
+            'Interop with SHA-512 systems: verify hashes or signatures from external systems that use SHA-512',
         ],
     },
 ];
@@ -250,8 +248,7 @@ export function Overview() {
                                                     className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
                                                     to={row.to}
                                                 >
-                                                    {row.comingSoon ? 'Coming soon' : 'Demo'}{' '}
-                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                    Demo <ArrowRight className="h-3.5 w-3.5" />
                                                 </Link>
                                             ) : (
                                                 <span className="text-xs text-sand-900">soon</span>
