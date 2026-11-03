@@ -22,7 +22,7 @@ export function Sha512() {
                         <SyscallTerm>syscall</SyscallTerm>, combined with the existing curve25519 syscalls, is what
                         replaces them: the program verifies the signature itself.
                     </p>
-                    <p className="text-muted-foreground">Here are some examples of what this makes possible:</p>
+                    <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
                             <span className="text-foreground">Signed permissions</span>: a user signs off-chain and
@@ -33,36 +33,14 @@ export function Sha512() {
                             from other programs and on data read from accounts, which the precompile cannot do
                         </li>
                     </ul>
-                    <p className="text-sm text-sand-1100">
-                        <span className="text-foreground">Status:</span> live on devnet and testnet; mainnet activation
-                        is pending. SIMD-0568 is still a proposal.
-                    </p>
-                    <div className="flex flex-col gap-1">
-                        <a
-                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                            href="https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0512-sha512-syscall.md"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            Read SIMD-0512 <ExternalLink className="size-3.5" />
-                        </a>
-                        <a
-                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                            href="https://github.com/solana-foundation/solana-improvement-documents/pull/568"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            Read SIMD-0568 <ExternalLink className="size-3.5" />
-                        </a>
-                        <a
-                            className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                            href="https://github.com/solana-foundation/crypto-primitives-examples/tree/main/program/src/instructions/ed25519"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            View source <ExternalLink className="size-3.5" />
-                        </a>
-                    </div>
+                    <a
+                        className="inline-flex items-center gap-1 text-sm text-sand-1100 underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                        href="https://github.com/solana-foundation/crypto-primitives-examples/tree/main/program/src/instructions/ed25519"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        View source <ExternalLink className="size-3.5" />
+                    </a>
                 </div>
                 <div className="lg:col-span-2">
                     <Ed25519Demo />
