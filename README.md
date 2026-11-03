@@ -68,9 +68,10 @@ The program is a thin wrapper over the active syscalls plus a few stateful accou
 | 9             | `Bls254AggregateVerify`                 | Folds G2 pubkeys, runs one pairing check                       |
 | 10, 11        | `MultisigAddSigners` / `MultisigVerify` | Stateful account; all members must sign                        |
 | 12, 13        | `BlsRegistryAdd` / `BlsRegistryRemove`  | Stateful account; G2 add / sub on a running aggregate          |
+| 14            | `BallotTallyAdd`                        | Stateful account; ristretto255 add on an encrypted tally       |
 | 15            | `BlsRegistryVerify`                     | One `sol_curve_pairing_map` check against the stored aggregate |
 
-Compute units, measured on an agave 4.0 runtime:
+Compute units, measured with Mollusk on an agave 4.3 runtime:
 
 | Operation                        | CU                   |
 | -------------------------------- | -------------------- |
@@ -133,7 +134,7 @@ The BN254 G2 and BLS12-381 syscalls used by this program require Agave 4.0, and 
 | Tool      | Version | Notes                                                     |
 | --------- | ------- | --------------------------------------------------------- |
 | Rust      | 1.97.1  | Pinned in `rust-toolchain.toml`                           |
-| Agave CLI | 4.2.1   | Pinned in `.solana-version`; `just toolchain` installs it |
+| Agave CLI | 4.4.0   | Pinned in `.solana-version`; `just toolchain` installs it |
 | Node.js   | 24.13.0 | Pinned in `.nvmrc`                                        |
 | pnpm      | latest  | Package manager                                           |
 | Just      | latest  | Task runner                                               |
@@ -220,7 +221,7 @@ GitHub Actions runs split workflows on PRs and pushes to `main`:
 
 ## Notes & Gotchas
 
-- **This repo treats alt_bn128 G2 as add/mul only.** The pinned Agave 4.2.1 runtime path used here dispatches the G2 add (op 4) and mul (op 6) opcodes. SIMD-0302 also describes subtraction, but this checked-in program does not expose an alt_bn128 G2 subtraction instruction. BLS12-381 does have subtraction in this repo, which is why the registry demo can remove a supplied member key.
+- **This repo treats alt_bn128 G2 as add/mul only.** The pinned Agave 4.4.0 runtime path used here dispatches the G2 add (op 4) and mul (op 6) opcodes. SIMD-0302 also describes subtraction, but this checked-in program does not expose an alt_bn128 G2 subtraction instruction. BLS12-381 does have subtraction in this repo, which is why the registry demo can remove a supplied member key.
 - **The client supplies the message hash point.** Both on-chain BLS verifiers take the negated hash-to-curve point as input instead of hashing the message on-chain, so they prove the members signed that point, not a specific message. The BLS12-381 verifier rejects identity points, since `e(O, Q) = 1` would let an all-identity input pass the pairing check.
 - **pinocchio 0.10 binds the old `sol_curve_pairing_map` signature.** It re-exports `solana-define-syscall` 4.x (3 arguments); the runtime takes `(curve_id, num_pairs, g1_points, g2_points, result)`, so the program calls the `solana-define-syscall` 5.x binding directly.
 - **Byte formats differ.** alt_bn128 G2 is 128 bytes in EIP-197 big-endian order; BLS12-381 is uncompressed Zcash/blstrs big-endian (G1 96 bytes, G2 192 bytes). See `apps/web/src/lib/` for the converters.
