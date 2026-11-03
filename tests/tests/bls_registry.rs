@@ -1,6 +1,7 @@
 //! Integration tests for the stateful BLS12-381 aggregate-key registry
-//! instructions (12 add, 13 remove). The program maintains a running aggregate
-//! G2 key via the curve add/sub syscalls. Test vectors are generated
+//! instructions (12 add, 13 remove, 15 verify). The program maintains a running
+//! aggregate G2 key via the curve add/sub syscalls and verifies aggregate
+//! signatures against it with the pairing syscall. Test vectors are generated
 //! deterministically by `apps/web/scripts/gen-test-vectors.ts`.
 
 use {
@@ -15,6 +16,7 @@ use {
 const PROGRAM_ID: &str = "EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw";
 const IX_REGISTRY_ADD: u8 = 12;
 const IX_REGISTRY_REMOVE: u8 = 13;
+const IX_REGISTRY_VERIFY: u8 = 15;
 
 const G2_POINT: usize = 192;
 const COUNT_PREFIX: usize = 2;
@@ -24,6 +26,10 @@ const PUBKEY_2: &str = "0a4edef9c1ed7f729f520e47730a124fd70662a904ba1074728114d1
 const AGG_1_2: &str = "09380275bbc8e5dcea7dc4dd7e0550ff2ac480905396eda55062650f8d251c96eb480673937cc6d9d6a44aaa56ca66dc122915c824a0857e2ee414a3dccb23ae691ae54329781315a0c75df1c04d6d7a50a030fc866f09d516020ef82324afae08f239ba329b3967fe48d718a36cfe5f62a7e42e0bf1c1ed714150a166bfbd6bcf6b3b58b975b9edea56d53f23a0e8490b21da7955969e61010c7a1abc1a6f0136961d1e3b20b1a7326ac738fef5c721479dfd948b52fdf2455e44813ecfd892";
 const AGG_1_2_3: &str = "03f4b4e761936d90fd5f55f99087138a07a69755ad4a46e4dd1c2cfe6d11371e1cc033111a0595e3bba98d0f538db45119e384121b7d70927c49e6d044fd8517c36bc6ed2813a8956dd64f049869e8a77f7e46930240e6984abe26fa6a89658f088bb5832f4a4a452edda646ebaa2853a54205d56329960b44b2450070734724a74daaa401879bad142132316e9b340117a31a4fccfb5f768a2157517c77a4f8aaf0dee8f260d96e02e1175a8754d09600923beae02a019afc327b65a2fdbbfc";
 const AGG_1_3: &str = "070227d3f13684fdb7ce31b8065ba3acb35f7bde6fe2ddfefa359f8b35d08a9ab9537b43e24f4ffb720b5a0bda2a82f20e7a30979a8853a077454eb63b8dcee75f106221b262886bb8e01b0abb043368da82f60899cc1412e33e4120195fc5570782c14e2c4ee61cbe7be6e462a66b2e3509f42d53ff333efc9bfe9a00307cd2f68b007606446d98a75fb808a405d8b90701377cb7da22789d032737eabcea2b2eee6bb4634c4365864511a43c2caad50422993ccd3e99636eb8a5f189454b18";
+
+const NEGATED_MESSAGE_HASH: &str = "18bb3450ac4602fac493f24b861efde1f20a50665d955955ad3422fa69e6028a3da7e56ad702a56f1f6242295639b25b0e100676b85bdbf225d3057a29faae6e92c3be803cfab2c68bd4db0e70ddc94277efe23ed44bd5af6fee97ac1bdc7ebb";
+const AGG_SIG_1_2_3: &str = "04aa024aee5970276344b710a59cb87545d61bd31bca0e565c15511f17e9a545fee1f0dda78861ae6fbb73cf805f37e31967779a8418fe83c08b6a48f22dfe91d4e44cfea4a13769e0a6b29a0bbcd749ec2899f7d7e0778e2a58cd24190e224b";
+const AGG_SIG_1_2: &str = "1870823f050cbd906d74f139410288ff206e2c0a75cd53ee606c3481353b5fe4a4395cb16469dbcf12fc6cd96d6251fb0c6415e5b4b9bb55e18149acc71a1e35df97960e5f7a4a5c754725c64c1f1b27f02f801455e0fabed8a693060383fc97";
 
 fn from_hex(s: &str) -> Vec<u8> {
     (0..s.len())
@@ -181,5 +187,94 @@ fn add_rejects_wrong_length() {
         &instruction,
         &[(account_key, account)],
         &[Check::err(ProgramError::Custom(1))], // InvalidInputLength
+    );
+}
+
+fn verify(account: Account, signature: &[u8], negated_hash: &[u8], check: Check) -> u64 {
+    let (mollusk, program_id) = mollusk();
+    let account_key = Pubkey::new_unique();
+    let mut data = vec![IX_REGISTRY_VERIFY];
+    data.extend_from_slice(signature);
+    data.extend_from_slice(negated_hash);
+    let instruction = Instruction::new_with_bytes(
+        program_id,
+        &data,
+        vec![AccountMeta::new_readonly(account_key, false)],
+    );
+    mollusk
+        .process_and_validate_instruction(&instruction, &[(account_key, account)], &[check])
+        .compute_units_consumed
+}
+
+fn program_id() -> Pubkey {
+    Pubkey::from_str(PROGRAM_ID).unwrap()
+}
+
+/// All three members signed: the pairing check against the on-chain aggregate passes.
+#[test]
+fn verify_all_members_passes() {
+    let units = verify(
+        registry_account(&program_id(), 3, Some(AGG_1_2_3)),
+        &from_hex(AGG_SIG_1_2_3),
+        &from_hex(NEGATED_MESSAGE_HASH),
+        Check::success(),
+    );
+    println!("bls registry verify compute units: {units}");
+}
+
+/// Only members 1 and 2 signed but the registry holds {1,2,3}: rejected.
+#[test]
+fn verify_missing_signer_fails() {
+    verify(
+        registry_account(&program_id(), 3, Some(AGG_1_2_3)),
+        &from_hex(AGG_SIG_1_2),
+        &from_hex(NEGATED_MESSAGE_HASH),
+        Check::err(ProgramError::Custom(4)), // AggregateVerifyFailed
+    );
+}
+
+/// A valid G1 point that is not the message hash: rejected.
+#[test]
+fn verify_wrong_message_fails() {
+    verify(
+        registry_account(&program_id(), 3, Some(AGG_1_2_3)),
+        &from_hex(AGG_SIG_1_2_3),
+        &from_hex(AGG_SIG_1_2),
+        Check::err(ProgramError::Custom(4)), // AggregateVerifyFailed
+    );
+}
+
+/// Identity signature and hash would satisfy the pairing equation trivially.
+#[test]
+fn verify_rejects_identity_points() {
+    let mut identity = [0u8; 96];
+    identity[0] = 0x40;
+    verify(
+        registry_account(&program_id(), 3, Some(AGG_1_2_3)),
+        &identity,
+        &identity,
+        Check::err(ProgramError::Custom(4)), // AggregateVerifyFailed
+    );
+}
+
+/// An empty registry has no key to verify against.
+#[test]
+fn verify_rejects_empty_registry() {
+    verify(
+        registry_account(&program_id(), 0, None),
+        &from_hex(AGG_SIG_1_2_3),
+        &from_hex(NEGATED_MESSAGE_HASH),
+        Check::err(ProgramError::Custom(4)), // AggregateVerifyFailed
+    );
+}
+
+/// Input that isn't exactly two G1 points is rejected.
+#[test]
+fn verify_rejects_wrong_length() {
+    verify(
+        registry_account(&program_id(), 3, Some(AGG_1_2_3)),
+        &from_hex(AGG_SIG_1_2_3),
+        &[],
+        Check::err(ProgramError::Custom(1)), // InvalidInputLength
     );
 }

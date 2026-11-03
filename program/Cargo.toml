@@ -18,6 +18,7 @@ codama = { workspace = true, optional = true }
 pinocchio = { workspace = true }
 solana-address = { workspace = true }
 pinocchio-log = { workspace = true }
+solana-define-syscall = { workspace = true }
 thiserror = { workspace = true }
 
 [build-dependencies]

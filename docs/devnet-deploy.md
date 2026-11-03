@@ -1,6 +1,6 @@
 # Devnet Deploy
 
-Program upgrades to devnet run through the `Release` GitHub Actions workflow. The workflow builds the program with the agave 4.0 toolchain and upgrades it in place, using a deployer keypair loaded from Doppler. (Verified builds are not used: the `solana-verify` toolchain lags agave 4.0's rustc, and verified builds aren't meaningful for devnet anyway.)
+Program upgrades to devnet run through the `Release` GitHub Actions workflow. The workflow builds the program with the pinned agave toolchain (`.solana-version`) and upgrades it in place, using a deployer keypair loaded from Doppler. (Verified builds are not used: the `solana-verify` toolchain lags agave 4.0's rustc, and verified builds aren't meaningful for devnet anyway.)
 
 The deployer keypair is the program's **upgrade authority** and the **fee payer**. It is never the program keypair (the program's identity); that is only needed for the one-time bootstrap below.
 

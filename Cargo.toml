@@ -25,6 +25,7 @@ serde_json = "^1.0.145"
 pinocchio = { version = "^0.10.1", features = ["copy"] }
 solana-address = { version = "2.0", features = ["curve25519", "decode"] }
 pinocchio-log = "^0.5.1"
+solana-define-syscall = "^5.3.0"
 thiserror = "^2.0.17"
 borsh = "^1.6.0"
 num-derive = "^0.4.0"
