@@ -1,3 +1,5 @@
+import { ed25519 } from '@noble/curves/ed25519.js';
+import { bytesToNumberLE } from '@noble/curves/utils.js';
 import { useEffect, useState } from 'react';
 import { useTransactionSigner } from '@solana/connector/react';
 import { Badge, Button } from '@solana/design-system';
@@ -12,6 +14,7 @@ import {
 
 import { useDemoWalletFunding } from '@/components/demo-funding';
 import { Connector, FlowDiagram, Stage, type StageState } from '@/components/flow-diagram';
+import { HashTerm } from '@/components/glossary-term';
 import {
     OnChainTransactionError,
     useWalletTransactionSignAndSend,
@@ -35,11 +38,32 @@ interface Signed {
     signature: Uint8Array;
 }
 
-interface VerifyResult {
+interface Recomputed {
+    expectedR: Uint8Array;
+    hash: Uint8Array;
+    r: Uint8Array;
+}
+
+interface VerifyResult extends Recomputed {
     computeUnits: bigint | null;
     ok: boolean;
     signature: string;
     tampered: boolean;
+}
+
+async function recompute(signed: Signed, message: string): Promise<Recomputed> {
+    const { Point } = ed25519;
+    const r = signed.signature.slice(0, 32);
+    const s = bytesToNumberLE(signed.signature.slice(32));
+    const pubkey = new Uint8Array(getAddressEncoder().encode(signed.pubkey));
+    const hash = new Uint8Array(
+        await crypto.subtle.digest('SHA-512', new Uint8Array([...r, ...pubkey, ...new TextEncoder().encode(message)])),
+    );
+    const k = bytesToNumberLE(hash) % Point.Fn.ORDER;
+    const expectedR = Point.BASE.multiplyUnsafe(s % Point.Fn.ORDER)
+        .subtract(Point.fromBytes(pubkey).multiplyUnsafe(k))
+        .toBytes();
+    return { expectedR, hash, r };
 }
 
 export function Ed25519Demo() {
@@ -55,12 +79,24 @@ export function Ed25519Demo() {
     const [busy, setBusy] = useState<'sign' | 'verify' | null>(null);
     const [result, setResult] = useState<VerifyResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [preview, setPreview] = useState<Recomputed | null>(null);
 
     useEffect(() => {
         getDemoWallet()
             .then(setWallet)
             .catch(() => undefined);
     }, []);
+
+    useEffect(() => {
+        if (!signed) return setPreview(null);
+        let cancelled = false;
+        recompute(signed, message)
+            .then(next => !cancelled && setPreview(next))
+            .catch(() => !cancelled && setPreview(null));
+        return () => {
+            cancelled = true;
+        };
+    }, [signed, message]);
 
     const cluster = getClusterFromClusterId(clusterId);
     const tampered = signed !== null && message !== signed.message;
@@ -119,7 +155,13 @@ export function Ed25519Demo() {
                     maxSupportedTransactionVersion: 1,
                 })
                 .send();
-            setResult({ computeUnits: tx?.meta?.computeUnitsConsumed ?? null, ok, signature, tampered });
+            setResult({
+                ...(await recompute(signed, message)),
+                computeUnits: tx?.meta?.computeUnitsConsumed ?? null,
+                ok,
+                signature,
+                tampered,
+            });
         } catch (caught) {
             if (caught instanceof InsufficientDemoFundsError) {
                 requestFunding({ address: caught.address, onFunded: () => void verify() });
@@ -132,42 +174,93 @@ export function Ed25519Demo() {
     }
 
     const stage1: StageState = busy === 'sign' || !signed ? 'active' : 'done';
-    const stage2: StageState =
+    const stage2: StageState = busy === 'verify' ? 'active' : signed ? 'done' : 'idle';
+    const stage3: StageState =
         busy === 'verify' ? 'active' : result ? (result.ok ? 'pass' : 'fail') : signed ? 'done' : 'idle';
+
+    const resultPanel = result && (
+        <div className="space-y-2 rounded-lg border bg-background px-3 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+                {result.ok ? <Badge variant="success">Verified</Badge> : <Badge variant="danger">Rejected</Badge>}
+                <span className="text-sand-1100">
+                    {result.tampered ? 'message edited after signing' : 'message as signed'}
+                    {result.computeUnits != null && (
+                        <>
+                            {' '}
+                            ·{' '}
+                            <span className="font-medium text-foreground">
+                                {result.computeUnits.toLocaleString()}
+                            </span>{' '}
+                            CU
+                        </>
+                    )}{' '}
+                    ·{' '}
+                    <a
+                        className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
+                        href={getSolanaExplorerUrl(result.signature, cluster)}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        view tx
+                    </a>
+                </span>
+            </div>
+            <div>
+                <span className="text-xs font-medium text-sand-1100">R from the signature</span>
+                <p className="mt-1 font-berkeley-mono text-xs break-all text-foreground">{bytesToHex(result.r)}</p>
+            </div>
+            <div>
+                <span className="text-xs font-medium text-sand-1100">[S]B − [k]A recomputed from this message</span>
+                <p
+                    className={
+                        'mt-1 font-berkeley-mono text-xs break-all ' +
+                        (bytesToHex(result.expectedR) === bytesToHex(result.r) ? 'text-foreground' : 'text-destructive')
+                    }
+                >
+                    {bytesToHex(result.expectedR)}
+                </p>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-5">
             <FlowDiagram>
                 <div>
-                    <h3 className="text-base font-semibold text-foreground">Signed permission slip</h3>
+                    <h3 className="text-base font-semibold text-foreground">
+                        Signed permission slip: the program checks who signed
+                    </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Sign a message off-chain, then let the program check the signature itself, in a single
-                        instruction, without the Ed25519 precompile.
+                        instruction — no Ed25519 precompile.
                     </p>
                     <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
-                            Write a permission and sign it. A connected wallet signs with its own key; otherwise a demo
+                            Write a permission and sign it — a connected wallet signs with its own key; otherwise a demo
                             key in your browser signs.
                         </li>
                         <li>
-                            Verify on-chain: the program hashes the message with SHA-512 and checks the signature with
+                            Verify on-chain — the program hashes the message with SHA-512 and checks the signature with
                             curve25519 math.
                         </li>
-                        <li>Edit the message after signing and verify again: the forgery is rejected.</li>
+                        <li>Edit the message after signing and verify again — the forgery is rejected.</li>
                     </ol>
                 </div>
 
                 <Stage
                     actions={
                         <div className="space-y-3">
-                            <textarea
-                                className="w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground"
-                                disabled={busy !== null}
-                                maxLength={MAX_MESSAGE_LENGTH}
-                                onChange={e => setMessage(e.target.value)}
-                                rows={2}
-                                value={message}
-                            />
+                            <label className="block">
+                                <span className="text-xs font-medium text-sand-1100">Permission</span>
+                                <textarea
+                                    className="mt-1 block w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    disabled={busy !== null}
+                                    maxLength={MAX_MESSAGE_LENGTH}
+                                    onChange={e => setMessage(e.target.value)}
+                                    rows={2}
+                                    value={message}
+                                />
+                            </label>
                             <Button disabled={!wallet} loading={busy === 'sign'} onClick={() => void sign()}>
                                 Sign message
                             </Button>
@@ -196,6 +289,28 @@ export function Ed25519Demo() {
 
                 <Stage
                     actions={
+                        preview ? (
+                            <div className="space-y-1 text-xs font-medium text-sand-1100">
+                                <div>SHA-512(R ‖ public key ‖ message)</div>
+                                <div className="font-berkeley-mono break-all">
+                                    {ellipsify(bytesToHex(preview.hash), 8)}
+                                </div>
+                            </div>
+                        ) : null
+                    }
+                    location="on-chain"
+                    n={2}
+                    state={stage2}
+                    title="Hash with SHA-512"
+                >
+                    one <code className="font-berkeley-mono">sol_sha512</code> call over the signature, key and message
+                    — change one letter and the <HashTerm>hash</HashTerm> changes completely
+                </Stage>
+
+                <Connector>k = hash mod L</Connector>
+
+                <Stage
+                    actions={
                         <div className="space-y-3">
                             <Button
                                 disabled={!wallet || !signed}
@@ -205,49 +320,19 @@ export function Ed25519Demo() {
                             >
                                 Verify on-chain
                             </Button>
-                            {result && (
-                                <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-background px-3 py-3 text-sm">
-                                    {result.ok ? (
-                                        <Badge variant="success">Verified</Badge>
-                                    ) : (
-                                        <Badge variant="danger">Rejected</Badge>
-                                    )}
-                                    <span className="text-sand-1100">
-                                        {result.tampered ? 'message edited after signing' : 'message as signed'}
-                                        {result.computeUnits != null && (
-                                            <>
-                                                {' '}
-                                                ·{' '}
-                                                <span className="font-medium text-foreground">
-                                                    {result.computeUnits.toLocaleString()}
-                                                </span>{' '}
-                                                CU
-                                            </>
-                                        )}{' '}
-                                        ·{' '}
-                                        <a
-                                            className="underline decoration-sand-700 underline-offset-2 hover:text-foreground"
-                                            href={getSolanaExplorerUrl(result.signature, cluster)}
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        >
-                                            view tx
-                                        </a>
-                                    </span>
-                                </div>
-                            )}
+                            {resultPanel}
                         </div>
                     }
                     location="on-chain"
-                    n={2}
-                    state={stage2}
+                    n={3}
+                    state={stage3}
                     title="Verify"
                 >
                     {result
                         ? result.ok
                             ? '✓ the program confirmed who signed this exact message'
                             : '✗ signature does not match this message'
-                        : 'SHA-512 and curve25519 syscalls, no precompile'}
+                        : 'one curve25519 multiscalar multiplication checks [S]B − [k]A == R'}
                 </Stage>
             </FlowDiagram>
 
