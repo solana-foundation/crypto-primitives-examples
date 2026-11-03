@@ -14,14 +14,3 @@ createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
     </StrictMode>,
 );
-
-// Patch BigInt so transaction state can be safely inspected with JSON.stringify.
-declare global {
-    interface BigInt {
-        toJSON(): string;
-    }
-}
-
-BigInt.prototype.toJSON = function () {
-    return this.toString();
-};
