@@ -157,3 +157,24 @@ fn verify_rejects_foreign_account() {
         &[Check::err(ProgramError::Custom(5))], // InvalidMultisigAccount
     );
 }
+
+/// Identity signature and hash would satisfy the pairing equation trivially.
+#[test]
+fn verify_rejects_identity_points() {
+    let (mollusk, program_id) = mollusk();
+    let account_key = Pubkey::new_unique();
+    let account = multisig_account(&program_id, 3, &[PUBKEY_1, PUBKEY_2, PUBKEY_3]);
+
+    let mut data = vec![IX_MULTISIG_VERIFY];
+    data.extend_from_slice(&[0u8; 128]);
+    let instruction = Instruction::new_with_bytes(
+        program_id,
+        &data,
+        vec![AccountMeta::new(account_key, false)],
+    );
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[(account_key, account)],
+        &[Check::err(ProgramError::Custom(4))], // AggregateVerifyFailed
+    );
+}

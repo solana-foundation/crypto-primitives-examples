@@ -41,6 +41,10 @@ pub fn aggregate_g2(points: &[u8]) -> Result<[u8; G2_POINT], ProgramError> {
     Ok(aggregate)
 }
 
+fn is_identity(point: &[u8]) -> bool {
+    point.iter().all(|&byte| byte == 0)
+}
+
 /// Checks the BLS relation `e(aggregate_signature, G2) * e(negated_message_hash,
 /// aggregate_pubkey) == 1` via the alt_bn128 pairing syscall.
 pub fn aggregate_verify(
@@ -48,6 +52,12 @@ pub fn aggregate_verify(
     negated_message_hash: &[u8],
     aggregate_pubkey: &[u8],
 ) -> Result<bool, ProgramError> {
+    // EIP-197 encodes the identity as all zeros, and e(O, Q) = 1 for any Q, so
+    // identity inputs would pass the pairing check without any member signing.
+    if is_identity(aggregate_signature) || is_identity(negated_message_hash) {
+        return Ok(false);
+    }
+
     let mut input = [0u8; PAIRING_INPUT];
     input[..G1_POINT].copy_from_slice(aggregate_signature);
     input[G1_POINT..G1_POINT + G2_POINT].copy_from_slice(&G2_GENERATOR);
