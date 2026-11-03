@@ -106,4 +106,14 @@ pub enum CryptoPrimitivesInstruction {
         registry: pinocchio::Address,
         input: [u8; 192],
     } = 15,
+
+    /// Verifies an Ed25519 signature inside the program with the `sol_sha512`
+    /// and curve25519 syscalls, with the same strict rules as the Ed25519
+    /// precompile: `pubkey` (32 bytes) ‖ `signature` (64 bytes) ‖ `message`.
+    Ed25519Verify {
+        pubkey: [u8; 32],
+        signature: [u8; 64],
+        #[codama(type = bytes)]
+        message: [u8; 0],
+    } = 16,
 }

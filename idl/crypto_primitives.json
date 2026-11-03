@@ -52,6 +52,12 @@
         "kind": "errorNode",
         "message": "Ballot tally account is not owned by this program, not writable, or too small",
         "name": "invalidBallotAccount"
+      },
+      {
+        "code": 8,
+        "kind": "errorNode",
+        "message": "Ed25519 signature failed verification",
+        "name": "signatureVerifyFailed"
       }
     ],
     "instructions": [
@@ -798,6 +804,73 @@
         ],
         "kind": "instructionNode",
         "name": "blsRegistryVerify"
+      },
+      {
+        "accounts": [],
+        "arguments": [
+          {
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 16
+            },
+            "defaultValueStrategy": "omitted",
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "type": {
+              "endian": "le",
+              "format": "u8",
+              "kind": "numberTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "pubkey",
+            "type": {
+              "count": {
+                "kind": "fixedCountNode",
+                "value": 32
+              },
+              "item": {
+                "endian": "le",
+                "format": "u8",
+                "kind": "numberTypeNode"
+              },
+              "kind": "arrayTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "signature",
+            "type": {
+              "count": {
+                "kind": "fixedCountNode",
+                "value": 64
+              },
+              "item": {
+                "endian": "le",
+                "format": "u8",
+                "kind": "numberTypeNode"
+              },
+              "kind": "arrayTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "message",
+            "type": {
+              "kind": "bytesTypeNode"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ],
+        "kind": "instructionNode",
+        "name": "ed25519Verify"
       }
     ],
     "kind": "programNode",

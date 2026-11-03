@@ -5,6 +5,7 @@ pub mod bls254_aggregate;
 pub mod bls_registry;
 #[cfg(feature = "idl")]
 pub mod definition;
+pub mod ed25519;
 pub mod multisig;
 pub mod noop;
 
@@ -15,6 +16,7 @@ pub use bls254_aggregate::*;
 pub use bls_registry::*;
 #[cfg(feature = "idl")]
 pub use definition::*;
+pub use ed25519::*;
 pub use multisig::*;
 pub use noop::*;
 
@@ -39,6 +41,7 @@ pub enum CryptoPrimitivesInstructionDiscriminators {
     BlsRegistryRemove = 13,
     BallotTallyAdd = 14,
     BlsRegistryVerify = 15,
+    Ed25519Verify = 16,
 }
 
 impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
@@ -62,6 +65,7 @@ impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
             13 => Ok(Self::BlsRegistryRemove),
             14 => Ok(Self::BallotTallyAdd),
             15 => Ok(Self::BlsRegistryVerify),
+            16 => Ok(Self::Ed25519Verify),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
