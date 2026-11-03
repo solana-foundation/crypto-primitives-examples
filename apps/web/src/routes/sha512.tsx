@@ -13,23 +13,23 @@ export function Sha512() {
                 <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
                     <p className="text-muted-foreground">
                         Every Solana wallet signs with Ed25519, and Ed25519 is built on the SHA-512{' '}
-                        <HashTerm>hash</HashTerm>. Until now, programs could not check those signatures themselves: they
-                        relied on the Ed25519 precompile, a built-in checker that lives outside the program.
+                        <HashTerm>hash</HashTerm>. Until now, programs could not check those signatures themselves —
+                        they relied on the Ed25519 precompile, a built-in checker that lives outside the program.
                     </p>
                     <p className="text-muted-foreground">
                         SIMD-0568 proposes removing the precompiles because they are rigid and hard to use safely. The
                         new <code className="font-berkeley-mono text-xs text-foreground">sol_sha512</code>{' '}
                         <SyscallTerm>syscall</SyscallTerm>, combined with the existing curve25519 syscalls, is what
-                        replaces them: the program verifies the signature itself.
+                        replaces them — the program verifies the signature itself.
                     </p>
                     <p className="text-muted-foreground">Here are some examples of what is now possible on Solana:</p>
                     <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         <li>
-                            <span className="text-foreground">Signed permissions</span>: a user signs off-chain and
-                            anyone can submit it; the program checks who signed (see the demo)
+                            <span className="text-foreground">Signed permissions</span> — a user signs off-chain and
+                            anyone can submit it, and the program checks who signed (see the demo)
                         </li>
                         <li>
-                            <span className="text-foreground">Composable checks</span>: verification works inside calls
+                            <span className="text-foreground">Composable checks</span> — verification works inside calls
                             from other programs and on data read from accounts, which the precompile cannot do
                         </li>
                     </ul>
