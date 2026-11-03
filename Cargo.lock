@@ -1262,6 +1262,7 @@ dependencies = [
  "pinocchio-log",
  "serde_json",
  "solana-address 2.9.0",
+ "solana-define-syscall 5.3.0",
  "thiserror 2.0.21",
 ]
 

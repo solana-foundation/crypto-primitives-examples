@@ -94,6 +94,14 @@ function bls12381() {
     print('BLS_AGG_1_2', agg([points[0], points[1]]));
     print('BLS_AGG_1_2_3', agg([points[0], points[1], points[2]]));
     print('BLS_AGG_1_3', agg([points[0], points[2]]));
+
+    const short = bls12_381.shortSignatures;
+    const hashed = short.hash(new TextEncoder().encode(MESSAGE));
+    const sigs = secrets.map(sk => short.sign(hashed, sk));
+    const aggSig = (s: typeof sigs) => hex(short.aggregateSignatures(s).toBytes(false));
+    print('BLS_NEGATED_MESSAGE_HASH', hex(hashed.negate().toBytes(false)));
+    print('BLS_AGG_SIG_1_2_3', aggSig(sigs));
+    print('BLS_AGG_SIG_1_2', aggSig(sigs.slice(0, 2)));
 }
 
 await bn254();

@@ -38,6 +38,7 @@ pub enum CryptoPrimitivesInstructionDiscriminators {
     BlsRegistryAdd = 12,
     BlsRegistryRemove = 13,
     BallotTallyAdd = 14,
+    BlsRegistryVerify = 15,
 }
 
 impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
@@ -60,6 +61,7 @@ impl TryFrom<u8> for CryptoPrimitivesInstructionDiscriminators {
             12 => Ok(Self::BlsRegistryAdd),
             13 => Ok(Self::BlsRegistryRemove),
             14 => Ok(Self::BallotTallyAdd),
+            15 => Ok(Self::BlsRegistryVerify),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

@@ -747,6 +747,57 @@
         ],
         "kind": "instructionNode",
         "name": "ballotTallyAdd"
+      },
+      {
+        "accounts": [
+          {
+            "isSigner": false,
+            "isWritable": false,
+            "kind": "instructionAccountNode",
+            "name": "registry"
+          }
+        ],
+        "arguments": [
+          {
+            "defaultValue": {
+              "kind": "numberValueNode",
+              "number": 15
+            },
+            "defaultValueStrategy": "omitted",
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "type": {
+              "endian": "le",
+              "format": "u8",
+              "kind": "numberTypeNode"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "input",
+            "type": {
+              "count": {
+                "kind": "fixedCountNode",
+                "value": 192
+              },
+              "item": {
+                "endian": "le",
+                "format": "u8",
+                "kind": "numberTypeNode"
+              },
+              "kind": "arrayTypeNode"
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ],
+        "kind": "instructionNode",
+        "name": "blsRegistryVerify"
       }
     ],
     "kind": "programNode",

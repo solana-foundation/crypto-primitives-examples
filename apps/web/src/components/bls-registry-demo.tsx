@@ -13,7 +13,10 @@ import {
 import { useDemoWalletFunding } from '@/components/demo-funding';
 import { Connector, FlowDiagram, Stage, type StageState } from '@/components/flow-diagram';
 import { BlsTerm } from '@/components/glossary-term';
-import { useWalletTransactionSignAndSend } from '@/components/solana/use-wallet-transaction-sign-and-send';
+import {
+    OnChainTransactionError,
+    useWalletTransactionSignAndSend,
+} from '@/components/solana/use-wallet-transaction-sign-and-send';
 import { useClusterConfig } from '@/hooks/use-cluster-config';
 import { useRpc } from '@/hooks/useRpc';
 import {
@@ -27,7 +30,7 @@ import {
     REGISTRY_ADD_DISCRIMINATOR,
     REGISTRY_REMOVE_DISCRIMINATOR,
     restoreMember,
-    verifyAgainstOnChainKey,
+    verifyInstructionData,
 } from '@/lib/bls12381';
 import { clearDemoState, loadDemoState, saveDemoState } from '@/lib/demo-storage';
 import { ensureFunded, getDemoWallet, InsufficientDemoFundsError } from '@/lib/demo-wallet';
@@ -237,18 +240,32 @@ export function BlsRegistryDemo() {
     }
 
     async function verify() {
-        if (!registry) return;
+        if (!wallet || !registry) return;
         setBusy('verify');
         setError(null);
         setResult(null);
         try {
+            const signers = rows.filter(r => r.sign).map(r => members.current.get(r.id)!);
+            const instruction: Instruction = {
+                accounts: [{ address: registry, role: AccountRole.READONLY }],
+                data: verifyInstructionData(signers, MESSAGE),
+                programAddress: getProgramAddress(),
+            };
+            let signature: string;
+            let ok = true;
+            try {
+                signature = await signAndSend([instruction], wallet, { skipPreflight: true });
+            } catch (caught) {
+                if (!(caught instanceof OnChainTransactionError)) throw caught;
+                signature = caught.signature;
+                ok = false;
+            }
+            await recordLastOp(signature, 'pairing check');
+
             const info = await rpc.getAccountInfo(registry, { encoding: 'base64' }).send();
             const raw = base64ToBytes(info.value!.data[0]);
             const memberCount = raw[0] | (raw[1] << 8);
             const aggregateKey = raw.slice(2, 2 + G2_POINT_BYTES);
-
-            const signers = rows.filter(r => r.sign).map(r => members.current.get(r.id)!);
-            const ok = memberCount > 0 && verifyAgainstOnChainKey(signers, MESSAGE, aggregateKey);
             setResult({
                 aggregateKey: bytesToHex(aggregateKey),
                 memberCount,
@@ -257,7 +274,7 @@ export function BlsRegistryDemo() {
                 signerCount: signers.length,
             });
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Verify failed');
+            setError(formatTransactionError(caught));
         } finally {
             setBusy(null);
         }
@@ -330,8 +347,8 @@ export function BlsRegistryDemo() {
                         </li>
                         <li>
                             Pick who signs and verify — the aggregate signature only matches the on-chain key when the
-                            signers are exactly the current members.{' '}
-                            <span className="text-sand-1000">Verification runs off-chain in this demo.</span>
+                            signers are exactly the current members. The program checks it on-chain with one BLS12-381
+                            pairing call.
                         </li>
                     </ol>
                 </div>
@@ -443,14 +460,14 @@ export function BlsRegistryDemo() {
                     always a single stored key, no matter how big the set gets
                 </Stage>
 
-                <Connector>chosen signers' keys aggregated off-chain</Connector>
+                <Connector>signers' aggregate signature sent on-chain</Connector>
                 <Connector loop>add, remove, and verify in any order — repeat anytime</Connector>
 
                 <Stage
                     actions={
                         <div className="space-y-3">
                             <Button
-                                disabled={!registry || rows.length === 0}
+                                disabled={!wallet || !registry || rows.length === 0}
                                 loading={busy === 'verify'}
                                 onClick={() => void verify()}
                                 variant="secondary"
@@ -460,7 +477,7 @@ export function BlsRegistryDemo() {
                             {resultPanel}
                         </div>
                     }
-                    location="off-chain"
+                    location="on-chain"
                     n={3}
                     state={stage3}
                     title="Verify"
@@ -469,7 +486,7 @@ export function BlsRegistryDemo() {
                         ? result.ok
                             ? '✓ signer set matches the registry'
                             : "✗ signers don't match the stored key"
-                        : "signers' aggregate vs the stored key (verified off-chain)"}
+                        : "one pairing check of the signers' aggregate signature against the stored key"}
                 </Stage>
             </FlowDiagram>
 

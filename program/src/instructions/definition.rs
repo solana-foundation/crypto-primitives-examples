@@ -97,4 +97,13 @@ pub enum CryptoPrimitivesInstruction {
         tally: pinocchio::Address,
         ballot: [u8; 64],
     } = 14,
+
+    /// Verifies an aggregate BLS signature against the registry account's
+    /// on-chain aggregate key via one `sol_curve_pairing_map` call:
+    /// `aggregate_signature` (G1, 96 bytes) ‖ `negated_message_hash` (G1, 96 bytes).
+    BlsRegistryVerify {
+        #[codama(account(name = "registry"))]
+        registry: pinocchio::Address,
+        input: [u8; 192],
+    } = 15,
 }

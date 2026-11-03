@@ -62,6 +62,37 @@ pub fn curve_group_op(
 }
 
 #[inline(always)]
+pub fn curve_pairing_map(
+    curve_id: u64,
+    num_pairs: u64,
+    g1_points: &[u8],
+    g2_points: &[u8],
+    output: &mut [u8],
+) -> Result<(), ProgramError> {
+    #[cfg(target_os = "solana")]
+    {
+        let code = unsafe {
+            solana_define_syscall::definitions::sol_curve_pairing_map(
+                curve_id,
+                num_pairs,
+                g1_points.as_ptr(),
+                g2_points.as_ptr(),
+                output.as_mut_ptr(),
+            )
+        };
+        match code {
+            0 => Ok(()),
+            _ => Err(CryptoPrimitivesProgramError::SyscallFailed.into()),
+        }
+    }
+    #[cfg(not(target_os = "solana"))]
+    {
+        let _ = (curve_id, num_pairs, g1_points, g2_points, output);
+        Err(CryptoPrimitivesProgramError::SyscallUnavailable.into())
+    }
+}
+
+#[inline(always)]
 pub fn set_return_data(data: &[u8]) {
     #[cfg(target_os = "solana")]
     unsafe {
