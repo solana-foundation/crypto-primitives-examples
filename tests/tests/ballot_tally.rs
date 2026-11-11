@@ -5,15 +5,14 @@
 //! BALLOT_A = [2G || 3G], BALLOT_B = [5G || 7G], SUM = [7G || 10G].
 
 use {
-    mollusk_svm::{result::Check, Mollusk},
+    mollusk_svm::result::Check,
     solana_account::Account,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
-    std::str::FromStr,
+    tests_crypto_primitives::{from_hex, mollusk},
 };
 
-const PROGRAM_ID: &str = "EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw";
 const IX_BALLOT_TALLY_ADD: u8 = 14;
 
 const CIPHERTEXT: usize = 64;
@@ -22,22 +21,6 @@ const COUNT_PREFIX: usize = 2;
 const BALLOT_A: &str = "6a493210f7499cd17fecb510ae0cea23a110e8d5b901f8acadd3095c73a3b91994741f5d5d52755ece4f23f044ee27d5d1ea1e2bd196b462166b16152a9d0259";
 const BALLOT_B: &str = "e882b131016b52c1d3337080187cf768423efccbb517bb495ab812c4160ff44e44f53520926ec81fbd5a387845beb7df85a96a24ece18738bdcfa6a7822a176d";
 const SUM_AB: &str = "44f53520926ec81fbd5a387845beb7df85a96a24ece18738bdcfa6a7822a176d20706fd788b2720a1ed2a5dad4952b01f413bcf0e7564de8cdc816689e2db95f";
-
-fn from_hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-fn mollusk() -> (Mollusk, Pubkey) {
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/deploy"),
-    );
-    let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
-    (Mollusk::new(&program_id, "crypto_primitives"), program_id)
-}
 
 /// A program-owned tally account holding `count` ballots and the given tally
 /// ciphertext (empty tally = all-zero).

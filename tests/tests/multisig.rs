@@ -3,15 +3,14 @@
 //! `apps/web/scripts/gen-test-vectors.ts`.
 
 use {
-    mollusk_svm::{result::Check, Mollusk},
+    mollusk_svm::result::Check,
     solana_account::Account,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
-    std::str::FromStr,
+    tests_crypto_primitives::{from_hex, mollusk},
 };
 
-const PROGRAM_ID: &str = "EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw";
 const IX_MULTISIG_ADD_SIGNERS: u8 = 10;
 const IX_MULTISIG_VERIFY: u8 = 11;
 
@@ -24,22 +23,6 @@ const PUBKEY_3: &str = "1014772f57bb9742735191cd5dcfe4ebbc04156b6878a0a7c9824f32
 const NEGATED_MESSAGE_HASH: &str = "093cccf0e7508f50d86197799d553d23be9a52fecf9fa7d309f3f6a6a0bae1dd25592fd60d368265921cb7232eec3492210e46b4b95682469e7590b0d2df6f28";
 const AGG_SIG_ALL: &str = "06a6497a71f97597f1acf925b1f67eca5b5dd8011f7140e08f484e57dc79bff61b8268216fa30b6505352cdde4fc0d71a005296166f81bfe8edbde2352a6abbf";
 const AGG_SIG_FIRST_TWO: &str = "29da90779ff721fffa657af0a02eb50fcb18cc8176e4d63127827a1767d69c7e227c651364e066d84349de32d97fd6b7f423a1e2b9a162ba061337d5a29e9303";
-
-fn from_hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-fn mollusk() -> (Mollusk, Pubkey) {
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/deploy"),
-    );
-    let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
-    (Mollusk::new(&program_id, "crypto_primitives"), program_id)
-}
 
 /// A program-owned multisig account sized for `capacity` signers, holding
 /// `members` already-registered pubkeys.

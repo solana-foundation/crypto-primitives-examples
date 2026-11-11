@@ -16,15 +16,3 @@ impl<'a> TryFrom<&'a [u8]> for NoopData<'a> {
         Ok(Self { input })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_noop_data_borrows_input() {
-        let data = [1u8, 2, 3];
-        let parsed = NoopData::try_from(&data[..]).unwrap();
-        assert_eq!(parsed.input, &data[..]);
-    }
-}

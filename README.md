@@ -207,7 +207,7 @@ A Vite + React 19 single-page app under `apps/web/`.
 | `/elgamal`  | ZK ElGamal → encrypted-value proofs (2 tabs)      |
 | `/sha512`   | SHA-512 → in-program Ed25519 verification         |
 
-A network selector supports Localnet (dev), Devnet, Testnet, and Mainnet, plus a custom RPC override (the endpoint's genesis hash auto-detects the cluster).
+The app runs on Devnet (plus Localnet in dev builds). A custom RPC override can replace the Devnet endpoint; its genesis hash must match Devnet or it is rejected.
 
 ## CI Pipeline
 
