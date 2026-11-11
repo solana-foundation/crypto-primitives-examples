@@ -8,10 +8,10 @@ publish = false
 workspace = true
 
 [dependencies]
+mollusk-svm = "0.16.3"
+solana-pubkey = "4.0"
 
 [dev-dependencies]
-mollusk-svm = "0.16.3"
 solana-account = "4.7"
 solana-instruction = "3.0"
 solana-program-error = "3.0"
-solana-pubkey = "4.0"

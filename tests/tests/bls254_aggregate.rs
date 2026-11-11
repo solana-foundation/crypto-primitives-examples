@@ -4,14 +4,13 @@
 //! BLS secrets 1, 2, 3).
 
 use {
-    mollusk_svm::{result::Check, Mollusk},
+    mollusk_svm::result::Check,
     solana_instruction::Instruction,
     solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
-    std::str::FromStr,
+    tests_crypto_primitives::{from_hex, mollusk},
 };
 
-const PROGRAM_ID: &str = "EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw";
 const IX_BLS254_AGGREGATE_VERIFY: u8 = 9;
 
 const BN254_PUBKEY_1: &str = "198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa";
@@ -20,22 +19,6 @@ const BN254_PUBKEY_3: &str = "1014772f57bb9742735191cd5dcfe4ebbc04156b6878a0a7c9
 const BN254_NEGATED_MESSAGE_HASH: &str = "093cccf0e7508f50d86197799d553d23be9a52fecf9fa7d309f3f6a6a0bae1dd25592fd60d368265921cb7232eec3492210e46b4b95682469e7590b0d2df6f28";
 const BN254_AGG_SIG_ALL: &str = "06a6497a71f97597f1acf925b1f67eca5b5dd8011f7140e08f484e57dc79bff61b8268216fa30b6505352cdde4fc0d71a005296166f81bfe8edbde2352a6abbf";
 const BN254_AGG_SIG_FIRST_TWO: &str = "29da90779ff721fffa657af0a02eb50fcb18cc8176e4d63127827a1767d69c7e227c651364e066d84349de32d97fd6b7f423a1e2b9a162ba061337d5a29e9303";
-
-fn from_hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-fn mollusk() -> (Mollusk, Pubkey) {
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/deploy"),
-    );
-    let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
-    (Mollusk::new(&program_id, "crypto_primitives"), program_id)
-}
 
 /// `aggregate_signature ‖ negated_message_hash ‖ pubkey...`
 fn verify_instruction(program_id: Pubkey, agg_sig: &str, pubkeys: &[&str]) -> Instruction {

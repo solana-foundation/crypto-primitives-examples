@@ -29,7 +29,6 @@ const viteEnv = import.meta.env as unknown as {
     readonly DEV?: boolean;
     readonly VITE_DEFAULT_CLUSTER?: string;
     readonly VITE_DEVNET_RPC_URL?: string;
-    readonly VITE_MAINNET_RPC_URL?: string;
 };
 
 function defaultClusterId(): SolanaClusterId {

@@ -5,15 +5,15 @@
 //! deterministically by `apps/web/scripts/gen-test-vectors.ts`.
 
 use {
-    mollusk_svm::{result::Check, Mollusk},
+    mollusk_svm::result::Check,
     solana_account::Account,
     solana_instruction::{AccountMeta, Instruction},
     solana_program_error::ProgramError,
     solana_pubkey::Pubkey,
     std::str::FromStr,
+    tests_crypto_primitives::{from_hex, mollusk, PROGRAM_ID},
 };
 
-const PROGRAM_ID: &str = "EgJAPMy5V2j442dTGFRqT5ZtPCWtg6BEbEo2QzkExYyw";
 const IX_REGISTRY_ADD: u8 = 12;
 const IX_REGISTRY_REMOVE: u8 = 13;
 const IX_REGISTRY_VERIFY: u8 = 15;
@@ -30,22 +30,6 @@ const AGG_1_3: &str = "070227d3f13684fdb7ce31b8065ba3acb35f7bde6fe2ddfefa359f8b3
 const NEGATED_MESSAGE_HASH: &str = "18bb3450ac4602fac493f24b861efde1f20a50665d955955ad3422fa69e6028a3da7e56ad702a56f1f6242295639b25b0e100676b85bdbf225d3057a29faae6e92c3be803cfab2c68bd4db0e70ddc94277efe23ed44bd5af6fee97ac1bdc7ebb";
 const AGG_SIG_1_2_3: &str = "04aa024aee5970276344b710a59cb87545d61bd31bca0e565c15511f17e9a545fee1f0dda78861ae6fbb73cf805f37e31967779a8418fe83c08b6a48f22dfe91d4e44cfea4a13769e0a6b29a0bbcd749ec2899f7d7e0778e2a58cd24190e224b";
 const AGG_SIG_1_2: &str = "1870823f050cbd906d74f139410288ff206e2c0a75cd53ee606c3481353b5fe4a4395cb16469dbcf12fc6cd96d6251fb0c6415e5b4b9bb55e18149acc71a1e35df97960e5f7a4a5c754725c64c1f1b27f02f801455e0fabed8a693060383fc97";
-
-fn from_hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-fn mollusk() -> (Mollusk, Pubkey) {
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/deploy"),
-    );
-    let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
-    (Mollusk::new(&program_id, "crypto_primitives"), program_id)
-}
 
 /// A program-owned registry account holding `count` members and the given
 /// aggregate key (empty aggregate = all-zero).
