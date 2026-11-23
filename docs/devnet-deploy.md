@@ -40,12 +40,12 @@ OIDC auth — no long-lived Doppler token in GitHub.
 
 **Doppler** — project `crypto-primitives`, config `stg_github`:
 
-| Secret             | Value                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| `RPC_URL`          | Devnet RPC endpoint (e.g. `https://api.devnet.solana.com` or a private devnet RPC)   |
-| `DEPLOYER_KEYPAIR` | The deployer (fee payer) keypair as a JSON byte array (the `id.json` contents)        |
-| `SQUADS_VAULT`     | The devnet Squads vault address, set as the buffers' authority                       |
-| `SQUADS_MULTISIG`  | The devnet Squads multisig address the exported transaction targets                  |
+| Secret             | Value                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `RPC_URL`          | Devnet RPC endpoint (e.g. `https://api.devnet.solana.com` or a private devnet RPC) |
+| `DEPLOYER_KEYPAIR` | The deployer (fee payer) keypair as a JSON byte array (the `id.json` contents)     |
+| `SQUADS_VAULT`     | The devnet Squads vault address, set as the buffers' authority                     |
+| `SQUADS_MULTISIG`  | The devnet Squads multisig address the exported transaction targets                |
 
 **GitHub** — repository variable (Settings → Secrets and variables → Actions → Variables):
 
