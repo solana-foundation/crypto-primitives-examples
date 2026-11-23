@@ -58,31 +58,58 @@ jobs:
       - name: Build program
         run: just build-sbf
 
-      - name: Deploy program (devnet)
+      - name: Validate Squads config
         run: |
-          solana program deploy target/deploy/${PROGRAM}.so \
-            --program-id "$PROGRAM_ID" \
-            --keypair /tmp/deployer.json \
-            --url "$RPC_URL" \
-            --with-compute-unit-price "${{ inputs.priority-fee }}"
+          : "${SQUADS_VAULT:?Set SQUADS_VAULT in Doppler}"
+          : "${SQUADS_MULTISIG:?Set SQUADS_MULTISIG in Doppler}"
 
-      - name: Upload IDL via program-metadata (devnet)
-        uses: solana-developers/github-actions/metadata-upload@e6ed2eb93c55eca911dbc711fb08683b42926a28
+      - id: prepare-squads-release
+        name: Prepare Squads release buffers (devnet)
+        uses: solana-foundation/github-actions/prepare-squads-release@e6ed2eb93c55eca911dbc711fb08683b42926a28
         with:
+          program: ${{ env.PROGRAM }}
           program-id: ${{ env.PROGRAM_ID }}
           rpc-url: ${{ env.RPC_URL }}
           keypair: ${{ env.DEPLOYER_KEYPAIR }}
-          idl-path: idl/${{ env.PROGRAM }}.json
-          priority-fees: ${{ inputs.priority-fee }}
+          squads-vault: ${{ env.SQUADS_VAULT }}
+          metadata-path: idl/${{ env.PROGRAM }}.json
+          priority-fee: ${{ inputs.priority-fee }}
+
+      - id: export-squads-tx
+        name: Export combined Squads transaction
+        uses: solana-foundation/squads-program-action@572754d0b2e582bfc6bf2339f15d6dd2b9588246 # v0.5.1
+        with:
+          rpc: ${{ env.RPC_URL }}
+          program: ${{ env.PROGRAM_ID }}
+          buffer: ${{ steps.prepare-squads-release.outputs.buffer }}
+          metadata-buffer: ${{ steps.prepare-squads-release.outputs.metadata-buffer }}
+          multisig: ${{ env.SQUADS_MULTISIG }}
+          keypair: ${{ env.DEPLOYER_KEYPAIR }}
+          export: 'true'
 
       - name: Cleanup keypair
         if: always()
         run: rm -f /tmp/deployer.json
 
       - name: Summary
+        env:
+          NETWORK: devnet
+          BUFFER: ${{ steps.prepare-squads-release.outputs.buffer }}
+          METADATA_BUFFER: ${{ steps.prepare-squads-release.outputs.metadata-buffer }}
+          SQUADS_TX: ${{ steps.export-squads-tx.outputs.tx }}
         run: |
-          echo "## Release: devnet" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Program: \`${{ env.PROGRAM_ID }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- IDL: uploaded via program-metadata" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Release: $NETWORK"
+            echo ""
+            echo "- Program: \`$PROGRAM_ID\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Buffer: \`$BUFFER\`"
+            echo "- IDL buffer: \`$METADATA_BUFFER\`"
+            echo "- Buffer authority: \`$SQUADS_VAULT\`"
+            echo "- Combined transaction (base58, IDL metadata write + program upgrade in one):"
+            echo '```'
+            echo "$SQUADS_TX"
+            echo '```'
+            echo "- **Action required**: import the combined transaction into the Squads transaction builder, then approve and execute"
+            echo "- CI keypair role: fee payer and buffer writer only; it does not need Squads membership"
+          } >> "$GITHUB_STEP_SUMMARY"
