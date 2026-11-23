@@ -32,7 +32,7 @@ After bootstrap, every subsequent devnet release runs through CI.
 
 ## Running a release
 
-Trigger the `Release` workflow from the Actions tab (`workflow_dispatch`), optionally setting the priority fee. It loads `RPC_URL`, `DEPLOYER_KEYPAIR` and `SQUADS_VAULT` from Doppler, builds the program, and writes the program and IDL buffers with the vault as their authority. Then create the Squads upgrade proposal from the buffers in the run summary.
+Trigger the `Release` workflow from the Actions tab (`workflow_dispatch`), optionally setting the priority fee. It loads `RPC_URL`, `DEPLOYER_KEYPAIR`, `SQUADS_VAULT` and `SQUADS_MULTISIG` from Doppler, builds the program, writes the program and IDL buffers with the vault as their authority, and exports one Squads transaction (IDL metadata write and program upgrade). Import that transaction from the run summary into the Squads transaction builder, then approve and execute it.
 
 ## Doppler configuration
 
@@ -45,6 +45,7 @@ OIDC auth — no long-lived Doppler token in GitHub.
 | `RPC_URL`          | Devnet RPC endpoint (e.g. `https://api.devnet.solana.com` or a private devnet RPC)   |
 | `DEPLOYER_KEYPAIR` | The deployer (fee payer) keypair as a JSON byte array (the `id.json` contents)        |
 | `SQUADS_VAULT`     | The devnet Squads vault address, set as the buffers' authority                       |
+| `SQUADS_MULTISIG`  | The devnet Squads multisig address the exported transaction targets                  |
 
 **GitHub** — repository variable (Settings → Secrets and variables → Actions → Variables):
 
