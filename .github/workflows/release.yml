@@ -58,22 +58,20 @@ jobs:
       - name: Build program
         run: just build-sbf
 
-      - name: Deploy program (devnet)
-        run: |
-          solana program deploy target/deploy/${PROGRAM}.so \
-            --program-id "$PROGRAM_ID" \
-            --keypair /tmp/deployer.json \
-            --url "$RPC_URL" \
-            --with-compute-unit-price "${{ inputs.priority-fee }}"
+      - name: Validate Squads config
+        run: ': "${SQUADS_VAULT:?Set SQUADS_VAULT in Doppler stg_github}"'
 
-      - name: Upload IDL via program-metadata (devnet)
-        uses: solana-developers/github-actions/metadata-upload@e6ed2eb93c55eca911dbc711fb08683b42926a28
+      - id: prepare-squads-release
+        name: Prepare Squads release buffers (devnet)
+        uses: solana-foundation/github-actions/prepare-squads-release@e6ed2eb93c55eca911dbc711fb08683b42926a28
         with:
+          program: ${{ env.PROGRAM }}
           program-id: ${{ env.PROGRAM_ID }}
           rpc-url: ${{ env.RPC_URL }}
           keypair: ${{ env.DEPLOYER_KEYPAIR }}
-          idl-path: idl/${{ env.PROGRAM }}.json
-          priority-fees: ${{ inputs.priority-fee }}
+          squads-vault: ${{ env.SQUADS_VAULT }}
+          metadata-path: idl/${{ env.PROGRAM }}.json
+          priority-fee: ${{ inputs.priority-fee }}
 
       - name: Cleanup keypair
         if: always()
@@ -84,5 +82,8 @@ jobs:
           echo "## Release: devnet" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Program: \`${{ env.PROGRAM_ID }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- IDL: uploaded via program-metadata" >> $GITHUB_STEP_SUMMARY
           echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Buffer: \`${{ steps.prepare-squads-release.outputs.buffer }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- IDL buffer: \`${{ steps.prepare-squads-release.outputs.metadata-buffer }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Buffer authority: \`${{ env.SQUADS_VAULT }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Action required**: create the Squads upgrade proposal using the listed buffers" >> $GITHUB_STEP_SUMMARY
